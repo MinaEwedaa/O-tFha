@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "511208859381",
+    "project_id": "otfha-5c8d2",
+    "storage_bucket": "otfha-5c8d2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:511208859381:android:f72b2d2d0f5ab3688147bc",
+        "android_client_info": {
+          "package_name": "com.OtFha"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "511208859381-053f2t9b0damcsghcrsjgi76cva6dond.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.OtFha",
+            "certificate_hash": "41ce7ddcfa0278f55501e9e5e2ac0c799fb3923c"
+          }
+        },
+        {
+          "client_id": "511208859381-j4tptvahf726ujt7s5ecc3016of5qh03.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAD7FPlA_hsf3JYpe0__iWLZU8Tu2PBrAY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "511208859381-j4tptvahf726ujt7s5ecc3016of5qh03.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

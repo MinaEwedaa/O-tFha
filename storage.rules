@@ -1,0 +1,65 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return request.auth != null && 
+             firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Helper function to check if user owns the resource
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+    
+    // User uploads folder
+    match /user-uploads/{userId}/{allPaths=**} {
+      // Anyone can read uploaded images
+      allow read: if true;
+      
+      // Only the owner can write
+      allow write: if isOwner(userId) && 
+                      request.resource.size < 10 * 1024 * 1024 && // 10MB limit
+                      request.resource.contentType.matches('image/.*');
+    }
+    
+    // Predictions folder
+    match /predictions/{userId}/{allPaths=**} {
+      // Anyone can read prediction images
+      allow read: if true;
+      
+      // Only the owner can write
+      allow write: if isOwner(userId) && 
+                      request.resource.size < 10 * 1024 * 1024 && // 10MB limit
+                      request.resource.contentType.matches('image/.*');
+    }
+    
+    // Admin uploads folder
+    match /admin/{allPaths=**} {
+      // Anyone can read admin uploads
+      allow read: if true;
+      
+      // Only admins can write
+      allow write: if isAdmin() && 
+                      request.resource.size < 50 * 1024 * 1024 && // 50MB limit
+                      request.resource.contentType.matches('image/.*');
+    }
+    
+    // Model files folder
+    match /models/{allPaths=**} {
+      // Anyone can read model files
+      allow read: if true;
+      
+      // Only admins can write
+      allow write: if isAdmin() && 
+                      request.resource.size < 500 * 1024 * 1024; // 500MB limit
+    }
+    
+    // Default: deny all other access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
