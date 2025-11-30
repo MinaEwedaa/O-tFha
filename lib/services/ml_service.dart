@@ -1,4 +1,8 @@
-// Prediction result model classes for Cloud Vision service
+import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+// Prediction result model classes
 class PredictionResult {
   final bool success;
   final String disease;
@@ -107,3 +111,65 @@ class TopPrediction {
   }
 }
 
+/// Local HTTP ML Service - connects to local Python server
+class TFLiteMLService {
+  bool _isInitialized = false;
+  static const String serverUrl = 'http://10.0.2.2:5000'; // Android emulator localhost
+  
+  /// Initialize the service
+  Future<void> initialize() async {
+    if (_isInitialized) return;
+
+    try {
+      // Check if server is running
+      final response = await http.get(Uri.parse('$serverUrl/health')).timeout(
+        const Duration(seconds: 3),
+      );
+      
+      if (response.statusCode == 200) {
+        _isInitialized = true;
+        print('✅ Local model server connected');
+      } else {
+        throw Exception('Server not responding');
+      }
+    } catch (e) {
+      print('❌ Cannot connect to local server: $e');
+      print('Make sure to run: python local_model_server.py');
+      throw Exception('Local model server not running. Start it with: python local_model_server.py');
+    }
+  }
+
+  /// Run inference on an image file
+  Future<PredictionResult> detectDisease(File imageFile) async {
+    if (!_isInitialized) {
+      await initialize();
+    }
+
+    try {
+      // Create multipart request
+      var request = http.MultipartRequest('POST', Uri.parse('$serverUrl/predict'));
+      request.files.add(await http.MultipartFile.fromPath('image', imageFile.path));
+      
+      // Send request
+      var streamedResponse = await request.send().timeout(
+        const Duration(seconds: 10),
+      );
+      var response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body);
+        return PredictionResult.fromJson(json);
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('❌ Error during inference: $e');
+      throw Exception('Failed to analyze image: $e');
+    }
+  }
+
+  /// Dispose resources
+  void dispose() {
+    _isInitialized = false;
+  }
+}

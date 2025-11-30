@@ -56,6 +56,17 @@ service firebase.storage {
                       request.resource.size < 500 * 1024 * 1024; // 500MB limit
     }
     
+    // Resources folder
+    match /resources/{userId}/{allPaths=**} {
+      // Anyone can read resource images
+      allow read: if true;
+      
+      // Only the owner can write
+      allow write: if isOwner(userId) && 
+                      request.resource.size < 10 * 1024 * 1024 && // 10MB limit
+                      request.resource.contentType.matches('image/.*');
+    }
+    
     // Default: deny all other access
     match /{allPaths=**} {
       allow read, write: if false;

@@ -75,7 +75,7 @@ class _CartScreenState extends State<CartScreen> {
                     child: Column(
                       children: [
                         // Cart Items
-                        ...cartItems.map((item) => _buildCartItem(item)).toList(),
+                        ...cartItems.map((item) => _buildCartItem(item)),
                         
                         const SizedBox(height: 24),
                         

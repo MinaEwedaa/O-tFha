@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import '../services/schedule_service.dart';
 
 class NewScheduleScreen extends StatefulWidget {
   const NewScheduleScreen({super.key});
@@ -12,6 +13,8 @@ class NewScheduleScreen extends StatefulWidget {
 class _NewScheduleScreenState extends State<NewScheduleScreen> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
+  final ScheduleService _scheduleService = ScheduleService();
+  bool _isSaving = false;
   
   String? selectedFarm;
   DateTime? startDateTime;
@@ -115,9 +118,18 @@ class _NewScheduleScreenState extends State<NewScheduleScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _saveSchedule,
-        backgroundColor: Colors.teal.shade400,
-        child: const Icon(Icons.check, color: Colors.white, size: 32),
+        onPressed: _isSaving ? null : _saveSchedule,
+        backgroundColor: _isSaving ? Colors.grey : Colors.teal.shade400,
+        child: _isSaving
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
+            : const Icon(Icons.check, color: Colors.white, size: 32),
       ),
     );
   }
@@ -256,7 +268,7 @@ class _NewScheduleScreenState extends State<NewScheduleScreen> {
         ],
       ),
       child: DropdownButtonFormField<String>(
-        value: selectedFarm,
+        initialValue: selectedFarm,
         hint: Text(
           'farm name',
           style: GoogleFonts.poppins(
@@ -401,7 +413,7 @@ class _NewScheduleScreenState extends State<NewScheduleScreen> {
     }
   }
 
-  void _saveSchedule() {
+  Future<void> _saveSchedule() async {
     // Validate inputs
     if (_titleController.text.trim().isEmpty) {
       _showErrorSnackbar('Please enter a title');
@@ -428,20 +440,48 @@ class _NewScheduleScreenState extends State<NewScheduleScreen> {
       return;
     }
 
-    // TODO: Save schedule to database
-    // For now, just show success message and go back
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Schedule created successfully',
-          style: GoogleFonts.poppins(),
-        ),
-        backgroundColor: Colors.teal.shade400,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    // Save schedule to database
+    setState(() {
+      _isSaving = true;
+    });
 
-    Navigator.pop(context);
+    try {
+      final taskId = await _scheduleService.createTask(
+        title: _titleController.text.trim(),
+        description: _descriptionController.text.trim(),
+        farmName: selectedFarm!,
+        startDateTime: startDateTime!,
+        endDateTime: endDateTime!,
+      );
+
+      if (mounted) {
+        if (taskId != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Schedule created successfully',
+                style: GoogleFonts.poppins(),
+              ),
+              backgroundColor: Colors.teal.shade400,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          Navigator.pop(context);
+        } else {
+          _showErrorSnackbar('Failed to create schedule');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        _showErrorSnackbar('Error: $e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
   }
 
   void _showErrorSnackbar(String message) {

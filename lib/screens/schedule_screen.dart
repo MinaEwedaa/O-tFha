@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'new_schedule_screen.dart';
+import '../services/schedule_service.dart';
+import '../models/schedule_task.dart';
 
 class ScheduleScreen extends StatefulWidget {
   const ScheduleScreen({super.key});
@@ -12,6 +14,8 @@ class ScheduleScreen extends StatefulWidget {
 
 class _ScheduleScreenState extends State<ScheduleScreen> {
   DateTime selectedDate = DateTime.now();
+  final ScheduleService _scheduleService = ScheduleService();
+  
   final List<String> timeSlots = [
     '09:00',
     '10:00',
@@ -208,44 +212,328 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   }
 
   Widget _buildTimeSlots() {
-    return Container(
-      color: Colors.grey.shade50,
-      child: ListView.builder(
-        itemCount: timeSlots.length,
-        itemBuilder: (context, index) {
-          return Container(
-            height: 60,
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: Colors.grey.shade200),
-              ),
-            ),
-            child: Row(
-              children: [
-                // Time label
-                Container(
-                  width: 80,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    timeSlots[index],
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      color: Colors.blue.shade600,
-                      fontWeight: FontWeight.w500,
+    return StreamBuilder<List<ScheduleTask>>(
+      stream: _scheduleService.getTasksForDate(selectedDate),
+      builder: (context, snapshot) {
+        final tasks = snapshot.data ?? [];
+        
+        return Container(
+          color: Colors.grey.shade50,
+          child: tasks.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.event_note,
+                          size: 64,
+                          color: Colors.grey.shade400,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No tasks scheduled for this date',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            color: Colors.grey.shade600,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Tap + to add a new task',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.only(bottom: 80),
+                  itemCount: tasks.length,
+                  itemBuilder: (context, index) {
+                    final task = tasks[index];
+                    return _buildTaskCard(task);
+                  },
+                ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTaskCard(ScheduleTask task) {
+    final timeFormat = DateFormat('hh:mm a');
+    final startTime = timeFormat.format(task.startDateTime);
+    final endTime = timeFormat.format(task.endDateTime);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: task.isCompleted ? Colors.teal.shade200 : Colors.blue.shade200,
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            _showTaskDetails(task);
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    // Checkbox
+                    GestureDetector(
+                      onTap: () {
+                        _scheduleService.toggleTaskCompletion(task.id, !task.isCompleted);
+                      },
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: task.isCompleted ? Colors.teal.shade400 : Colors.transparent,
+                          border: Border.all(
+                            color: task.isCompleted ? Colors.teal.shade400 : Colors.grey.shade400,
+                            width: 2,
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: task.isCompleted
+                            ? const Icon(Icons.check, color: Colors.white, size: 18)
+                            : null,
+                      ),
+                    ),
+                    
+                    const SizedBox(width: 12),
+                    
+                    // Title
+                    Expanded(
+                      child: Text(
+                        task.title,
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                          decoration: task.isCompleted ? TextDecoration.lineThrough : null,
+                        ),
+                      ),
+                    ),
+                    
+                    // Delete button
+                    IconButton(
+                      icon: Icon(Icons.delete_outline, color: Colors.red.shade400),
+                      onPressed: () {
+                        _confirmDelete(task);
+                      },
+                    ),
+                  ],
                 ),
                 
-                // Schedule area (empty for now, can be filled with events)
-                Expanded(
-                  child: Container(
-                    color: Colors.white,
-                  ),
+                const SizedBox(height: 12),
+                
+                // Time
+                Row(
+                  children: [
+                    Icon(Icons.schedule, size: 16, color: Colors.blue.shade600),
+                    const SizedBox(width: 8),
+                    Text(
+                      '$startTime - $endTime',
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        color: Colors.blue.shade600,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
+                
+                const SizedBox(height: 8),
+                
+                // Farm
+                Row(
+                  children: [
+                    Icon(Icons.agriculture, size: 16, color: Colors.green.shade600),
+                    const SizedBox(width: 8),
+                    Text(
+                      task.farmName,
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+                
+                if (task.description.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    task.description,
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ],
             ),
-          );
-        },
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showTaskDetails(ScheduleTask task) {
+    final timeFormat = DateFormat('hh:mm a');
+    final dateFormat = DateFormat('EEEE, MMMM d, yyyy');
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Text(
+          task.title,
+          style: GoogleFonts.poppins(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildDetailRow(Icons.calendar_today, 'Date', dateFormat.format(task.startDateTime)),
+            const SizedBox(height: 12),
+            _buildDetailRow(Icons.schedule, 'Time', 
+              '${timeFormat.format(task.startDateTime)} - ${timeFormat.format(task.endDateTime)}'),
+            const SizedBox(height: 12),
+            _buildDetailRow(Icons.agriculture, 'Farm', task.farmName),
+            if (task.description.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _buildDetailRow(Icons.description, 'Description', task.description),
+            ],
+            const SizedBox(height: 12),
+            _buildDetailRow(
+              task.isCompleted ? Icons.check_circle : Icons.radio_button_unchecked,
+              'Status',
+              task.isCompleted ? 'Completed' : 'Pending',
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Close',
+              style: GoogleFonts.poppins(color: Colors.teal.shade600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(IconData icon, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: Colors.teal.shade600),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.poppins(
+                  fontSize: 11,
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                value,
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _confirmDelete(ScheduleTask task) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Text(
+          'Delete Task',
+          style: GoogleFonts.poppins(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: Text(
+          'Are you sure you want to delete "${task.title}"?',
+          style: GoogleFonts.poppins(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.poppins(color: Colors.grey.shade600),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              _scheduleService.deleteTask(task.id);
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Task deleted',
+                    style: GoogleFonts.poppins(),
+                  ),
+                  backgroundColor: Colors.red.shade400,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            },
+            child: Text(
+              'Delete',
+              style: GoogleFonts.poppins(color: Colors.red.shade600),
+            ),
+          ),
+        ],
       ),
     );
   }
