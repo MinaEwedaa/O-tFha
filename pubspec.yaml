@@ -44,8 +44,25 @@ dependencies:
   # State management
   provider: ^6.1.2
   
+  # Equality
+  equatable: ^2.0.5
+  
+  # Functional Programming (for Either type)
+  dartz: ^0.10.1
+  
   # Image processing
   image: ^4.1.7
+  
+  # Voice Commands (Accessibility)
+  speech_to_text: ^7.0.0
+  flutter_tts: ^4.2.0
+  
+  # Reports & Export
+  pdf: ^3.11.0
+  printing: ^5.13.0
+  excel: ^4.0.3
+  share_plus: ^10.0.2
+  open_filex: ^4.5.0
 
 dev_dependencies:
   flutter_test:

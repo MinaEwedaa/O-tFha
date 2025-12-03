@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
+import '../services/expense_service.dart';
 import 'loan_application_screen.dart';
 
 class ExpensesScreen extends StatefulWidget {
@@ -11,35 +14,39 @@ class ExpensesScreen extends StatefulWidget {
 
 class _ExpensesScreenState extends State<ExpensesScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  String selectedPeriod = 'This Month';
-
-  // Sample data - in real app, this would come from database
-  final double totalIncome = 45750.00;
-  final double totalExpenses = 32480.50;
-  final double balance = 13269.50;
-
-  final List<ExpenseCategory> categories = [
-    ExpenseCategory('Seeds & Fertilizers', 12500.00, Icons.grass, Colors.green),
-    ExpenseCategory('Equipment & Tools', 8750.00, Icons.construction, Colors.orange),
-    ExpenseCategory('Labor & Wages', 6200.00, Icons.people, Colors.blue),
-    ExpenseCategory('Irrigation & Water', 2850.50, Icons.water_drop, Colors.cyan),
-    ExpenseCategory('Pesticides', 1180.00, Icons.science, Colors.red),
-    ExpenseCategory('Transport', 1000.00, Icons.local_shipping, Colors.purple),
-  ];
-
-  final List<Transaction> recentTransactions = [
-    Transaction('Fertilizer Purchase', -1250.00, 'Seeds & Fertilizers', DateTime.now().subtract(const Duration(hours: 5))),
-    Transaction('Crop Sale - Tomatoes', 8500.00, 'Income', DateTime.now().subtract(const Duration(days: 1))),
-    Transaction('Labor Payment', -2100.00, 'Labor & Wages', DateTime.now().subtract(const Duration(days: 2))),
-    Transaction('Tractor Maintenance', -450.00, 'Equipment & Tools', DateTime.now().subtract(const Duration(days: 3))),
-    Transaction('Crop Sale - Wheat', 15000.00, 'Income', DateTime.now().subtract(const Duration(days: 4))),
-    Transaction('Water Bill', -850.50, 'Irrigation & Water', DateTime.now().subtract(const Duration(days: 5))),
-  ];
+  final ExpenseService _expenseService = ExpenseService();
+  String selectedPeriod = 'month';
+  
+  // Financial summary
+  FinancialSummary _summary = FinancialSummary.empty();
+  bool _isLoadingSummary = true;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _loadFinancialSummary();
+  }
+
+  Future<void> _loadFinancialSummary() async {
+    setState(() => _isLoadingSummary = true);
+    try {
+      final summary = await _expenseService.getFinancialSummary(period: selectedPeriod);
+      setState(() {
+        _summary = summary;
+        _isLoadingSummary = false;
+      });
+    } catch (e) {
+      print('Error loading summary: $e');
+      setState(() => _isLoadingSummary = false);
+    }
+  }
+
+  void _changePeriod(String period) {
+    setState(() {
+      selectedPeriod = period;
+    });
+    _loadFinancialSummary();
   }
 
   @override
@@ -66,47 +73,56 @@ class _ExpensesScreenState extends State<ExpensesScreen> with SingleTickerProvid
               
               // Main Content
               Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 16),
-                      
-                      // Financial Summary Card
-                      _buildFinancialSummaryCard(),
-                      
-                      const SizedBox(height: 16),
-                      
-                      // Quick Stats Row
-                      _buildQuickStatsRow(),
-                      
-                      const SizedBox(height: 16),
-                      
-                      // Period Selector
-                      _buildPeriodSelector(),
-                      
-                      const SizedBox(height: 16),
-                      
-                      // Expense Categories
-                      _buildExpenseCategories(),
-                      
-                      const SizedBox(height: 16),
-                      
-                      // Recent Transactions
-                      _buildRecentTransactions(),
-                      
-                      const SizedBox(height: 16),
-                      
-                      // Loan Application Button
-                      _buildLoanApplicationButton(context),
-                      
-                      const SizedBox(height: 24),
-                    ],
+                child: RefreshIndicator(
+                  onRefresh: _loadFinancialSummary,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 16),
+                        
+                        // Financial Summary Card
+                        _buildFinancialSummaryCard(),
+                        
+                        const SizedBox(height: 16),
+                        
+                        // Quick Stats Row
+                        _buildQuickStatsRow(),
+                        
+                        const SizedBox(height: 16),
+                        
+                        // Period Selector
+                        _buildPeriodSelector(),
+                        
+                        const SizedBox(height: 16),
+                        
+                        // Expense Categories
+                        _buildExpenseCategories(),
+                        
+                        const SizedBox(height: 16),
+                        
+                        // Recent Transactions
+                        _buildRecentTransactions(),
+                        
+                        const SizedBox(height: 16),
+                        
+                        // Loan Application Button
+                        _buildLoanApplicationButton(context),
+                        
+                        const SizedBox(height: 24),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ],
           ),
         ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showAddTransactionDialog(context),
+        backgroundColor: Colors.teal.shade600,
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
@@ -146,9 +162,30 @@ class _ExpensesScreenState extends State<ExpensesScreen> with SingleTickerProvid
   }
 
   Widget _buildFinancialSummaryCard() {
-    final incomePercentage = (totalIncome / (totalIncome + totalExpenses)) * 100;
-    final expensePercentage = (totalExpenses / (totalIncome + totalExpenses)) * 100;
-    final profitMargin = ((totalIncome - totalExpenses) / totalIncome * 100);
+    if (_isLoadingSummary) {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.all(40),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.teal.shade400, Colors.teal.shade700],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      );
+    }
+
+    final balance = _summary.balance;
+    final profitMargin = _summary.profitMargin;
+    final incomePercentage = _summary.totalIncome > 0 
+        ? (_summary.totalIncome / (_summary.totalIncome + _summary.totalExpenses)) * 100 
+        : 0;
+    final expensePercentage = 100 - incomePercentage;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -198,17 +235,30 @@ class _ExpensesScreenState extends State<ExpensesScreen> with SingleTickerProvid
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.3),
+                      color: profitMargin >= 0 
+                          ? Colors.green.withOpacity(0.3) 
+                          : Colors.red.withOpacity(0.3),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.greenAccent.shade100, width: 1),
+                      border: Border.all(
+                        color: profitMargin >= 0 
+                            ? Colors.greenAccent.shade100 
+                            : Colors.redAccent.shade100, 
+                        width: 1
+                      ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.trending_up, color: Colors.greenAccent.shade100, size: 14),
+                        Icon(
+                          profitMargin >= 0 ? Icons.trending_up : Icons.trending_down, 
+                          color: profitMargin >= 0 
+                              ? Colors.greenAccent.shade100 
+                              : Colors.redAccent.shade100, 
+                          size: 14
+                        ),
                         const SizedBox(width: 4),
                         Text(
-                          '+${profitMargin.toStringAsFixed(1)}% profit margin',
+                          '${profitMargin >= 0 ? '+' : ''}${profitMargin.toStringAsFixed(1)}% profit margin',
                           style: GoogleFonts.poppins(
                             fontSize: 11,
                             color: Colors.white,
@@ -226,7 +276,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> with SingleTickerProvid
                   color: Colors.white.withOpacity(0.2),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.account_balance_wallet, color: Colors.white, size: 28),
+                child: const Icon(Icons.account_balance_wallet, color: Colors.white, size: 28),
               ),
             ],
           ),
@@ -239,7 +289,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> with SingleTickerProvid
               Expanded(
                 child: _buildFinancialItem(
                   'Income',
-                  totalIncome,
+                  _summary.totalIncome,
                   Icons.arrow_downward,
                   Colors.greenAccent,
                   '${incomePercentage.toStringAsFixed(0)}%',
@@ -249,7 +299,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> with SingleTickerProvid
               Expanded(
                 child: _buildFinancialItem(
                   'Expenses',
-                  totalExpenses,
+                  _summary.totalExpenses,
                   Icons.arrow_upward,
                   Colors.redAccent,
                   '${expensePercentage.toStringAsFixed(0)}%',
@@ -317,29 +367,36 @@ class _ExpensesScreenState extends State<ExpensesScreen> with SingleTickerProvid
   }
 
   Widget _buildQuickStatsRow() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildStatCard(
-              'Avg. Daily Expense',
-              'EGX ${(totalExpenses / 30).toStringAsFixed(2)}',
-              Icons.calendar_today,
-              Colors.orange.shade400,
-            ),
+    return FutureBuilder<double>(
+      future: _expenseService.getAverageDailyExpense(),
+      builder: (context, snapshot) {
+        final avgDaily = snapshot.data ?? 0;
+        
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  'Avg. Daily Expense',
+                  'EGX ${avgDaily.toStringAsFixed(2)}',
+                  Icons.calendar_today,
+                  Colors.orange.shade400,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStatCard(
+                  'Total Transactions',
+                  '${_summary.transactionCount}',
+                  Icons.receipt_long,
+                  Colors.purple.shade400,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _buildStatCard(
-              'Total Transactions',
-              '${recentTransactions.length}',
-              Icons.receipt_long,
-              Colors.purple.shade400,
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -391,7 +448,12 @@ class _ExpensesScreenState extends State<ExpensesScreen> with SingleTickerProvid
   }
 
   Widget _buildPeriodSelector() {
-    final periods = ['This Week', 'This Month', 'This Year', 'All Time'];
+    final periods = [
+      {'id': 'week', 'label': 'This Week'},
+      {'id': 'month', 'label': 'This Month'},
+      {'id': 'year', 'label': 'This Year'},
+      {'id': 'all', 'label': 'All Time'},
+    ];
     
     return Container(
       height: 45,
@@ -401,14 +463,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> with SingleTickerProvid
         itemCount: periods.length,
         itemBuilder: (context, index) {
           final period = periods[index];
-          final isSelected = selectedPeriod == period;
+          final isSelected = selectedPeriod == period['id'];
           
           return GestureDetector(
-            onTap: () {
-              setState(() {
-                selectedPeriod = period;
-              });
-            },
+            onTap: () => _changePeriod(period['id']!),
             child: Container(
               margin: const EdgeInsets.only(right: 12),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -430,7 +488,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> with SingleTickerProvid
               ),
               child: Center(
                 child: Text(
-                  period,
+                  period['label']!,
                   style: GoogleFonts.poppins(
                     fontSize: 13,
                     color: isSelected ? Colors.white : Colors.grey.shade700,
@@ -479,16 +537,70 @@ class _ExpensesScreenState extends State<ExpensesScreen> with SingleTickerProvid
           ),
           const SizedBox(height: 16),
           
-          // Expense Categories List
-          ...categories.map((category) => _buildCategoryItem(category)).toList(),
+          // Show categories from Firebase
+          if (_summary.expensesByCategory.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    Icon(Icons.inbox_outlined, size: 48, color: Colors.grey.shade400),
+                    const SizedBox(height: 8),
+                    Text(
+                      'No expenses yet',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            ...ExpenseCategory.defaults.where((cat) {
+              return _summary.expensesByCategory.containsKey(cat.id);
+            }).map((category) {
+              final amount = _summary.expensesByCategory[category.id] ?? 0.0;
+              final percentage = _summary.totalExpenses > 0 
+                  ? (amount / _summary.totalExpenses * 100).toDouble()
+                  : 0.0;
+              
+              return _buildCategoryItem(
+                category.name,
+                amount,
+                _getCategoryIcon(category.icon),
+                _getCategoryColor(category.colorHex),
+                percentage,
+              );
+            }),
         ],
       ),
     );
   }
 
-  Widget _buildCategoryItem(ExpenseCategory category) {
-    final percentage = (category.amount / totalExpenses * 100);
-    
+  IconData _getCategoryIcon(String iconName) {
+    switch (iconName) {
+      case 'grass': return Icons.grass;
+      case 'construction': return Icons.construction;
+      case 'people': return Icons.people;
+      case 'water_drop': return Icons.water_drop;
+      case 'science': return Icons.science;
+      case 'local_shipping': return Icons.local_shipping;
+      case 'build': return Icons.build;
+      default: return Icons.category;
+    }
+  }
+
+  Color _getCategoryColor(String hexColor) {
+    try {
+      return Color(int.parse(hexColor.replaceFirst('#', '0xFF')));
+    } catch (e) {
+      return Colors.grey;
+    }
+  }
+
+  Widget _buildCategoryItem(String name, double amount, IconData icon, Color color, double percentage) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
@@ -498,10 +610,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> with SingleTickerProvid
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: category.color.withOpacity(0.1),
+                  color: color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(category.icon, color: category.color, size: 22),
+                child: Icon(icon, color: color, size: 22),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -509,7 +621,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> with SingleTickerProvid
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      category.name,
+                      name,
                       style: GoogleFonts.poppins(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
@@ -525,7 +637,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> with SingleTickerProvid
                             child: LinearProgressIndicator(
                               value: percentage / 100,
                               backgroundColor: Colors.grey.shade200,
-                              color: category.color,
+                              color: color,
                               minHeight: 6,
                             ),
                           ),
@@ -546,7 +658,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> with SingleTickerProvid
               ),
               const SizedBox(width: 12),
               Text(
-                'EGX ${category.amount.toStringAsFixed(2)}',
+                'EGX ${amount.toStringAsFixed(2)}',
                 style: GoogleFonts.poppins(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -607,85 +719,184 @@ class _ExpensesScreenState extends State<ExpensesScreen> with SingleTickerProvid
           ),
           const SizedBox(height: 16),
           
-          // Transactions List
-          ...recentTransactions.map((transaction) => _buildTransactionItem(transaction)).toList(),
+          // Transactions stream
+          StreamBuilder<List<FinancialTransaction>>(
+            stream: _expenseService.getRecentTransactions(limit: 6),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+              }
+
+              if (snapshot.hasError) {
+                return Center(
+                  child: Text('Error loading transactions'),
+                );
+              }
+
+              final transactions = snapshot.data ?? [];
+
+              if (transactions.isEmpty) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        Icon(Icons.receipt_long_outlined, size: 48, color: Colors.grey.shade400),
+                        const SizedBox(height: 8),
+                        Text(
+                          'No transactions yet',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
+                          onPressed: () => _showAddTransactionDialog(context),
+                          icon: const Icon(Icons.add),
+                          label: const Text('Add Transaction'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.teal.shade600,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              return Column(
+                children: transactions.map((t) => _buildTransactionItem(t)).toList(),
+              );
+            },
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildTransactionItem(Transaction transaction) {
-    final isIncome = transaction.amount > 0;
+  Widget _buildTransactionItem(FinancialTransaction transaction) {
+    final isIncome = transaction.isIncome;
     final timeAgo = _getTimeAgo(transaction.date);
+    final category = ExpenseCategory.defaults.firstWhere(
+      (c) => c.id == transaction.category,
+      orElse: () => ExpenseCategory(id: 'other', name: transaction.category),
+    );
     
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: isIncome ? Colors.green.shade50 : Colors.red.shade50,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              isIncome ? Icons.arrow_downward : Icons.arrow_upward,
-              color: isIncome ? Colors.green.shade600 : Colors.red.shade600,
-              size: 20,
-            ),
+      child: Dismissible(
+        key: Key(transaction.id),
+        direction: DismissDirection.endToStart,
+        background: Container(
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 20),
+          decoration: BoxDecoration(
+            color: Colors.red.shade400,
+            borderRadius: BorderRadius.circular(12),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  transaction.title,
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black87,
-                  ),
+          child: const Icon(Icons.delete, color: Colors.white),
+        ),
+        confirmDismiss: (direction) async {
+          return await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Delete Transaction'),
+              content: const Text('Are you sure you want to delete this transaction?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
                 ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Text(
-                      transaction.category,
-                      style: GoogleFonts.poppins(
-                        fontSize: 11,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                    Text(
-                      ' • ',
-                      style: GoogleFonts.poppins(
-                        fontSize: 11,
-                        color: Colors.grey.shade400,
-                      ),
-                    ),
-                    Text(
-                      timeAgo,
-                      style: GoogleFonts.poppins(
-                        fontSize: 11,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  child: const Text('Delete'),
                 ),
               ],
             ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            '${isIncome ? '+' : ''}EGX ${transaction.amount.toStringAsFixed(2)}',
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: isIncome ? Colors.green.shade600 : Colors.red.shade600,
+          );
+        },
+        onDismissed: (direction) async {
+          await _expenseService.deleteTransaction(transaction.id);
+          _loadFinancialSummary();
+        },
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: isIncome ? Colors.green.shade50 : Colors.red.shade50,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                isIncome ? Icons.arrow_downward : Icons.arrow_upward,
+                color: isIncome ? Colors.green.shade600 : Colors.red.shade600,
+                size: 20,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    transaction.title,
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Text(
+                        category.name,
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      Text(
+                        ' • ',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: Colors.grey.shade400,
+                        ),
+                      ),
+                      Text(
+                        timeAgo,
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              '${isIncome ? '+' : '-'}EGX ${transaction.amount.abs().toStringAsFixed(2)}',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: isIncome ? Colors.green.shade600 : Colors.red.shade600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -744,7 +955,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> with SingleTickerProvid
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Icon(Icons.request_quote, color: Colors.white, size: 28),
+                  child: const Icon(Icons.request_quote, color: Colors.white, size: 28),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -770,7 +981,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> with SingleTickerProvid
                     ],
                   ),
                 ),
-                Icon(Icons.arrow_forward, color: Colors.white, size: 24),
+                const Icon(Icons.arrow_forward, color: Colors.white, size: 24),
               ],
             ),
           ),
@@ -778,24 +989,270 @@ class _ExpensesScreenState extends State<ExpensesScreen> with SingleTickerProvid
       ),
     );
   }
+
+  void _showAddTransactionDialog(BuildContext context) {
+    final titleController = TextEditingController();
+    final amountController = TextEditingController();
+    String selectedType = 'expense';
+    String selectedCategory = 'seeds';
+    DateTime selectedDate = DateTime.now();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 20,
+                right: 20,
+                top: 20,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Add Transaction',
+                    style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  // Transaction Type Toggle
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setModalState(() => selectedType = 'expense'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              color: selectedType == 'expense' 
+                                  ? Colors.red.shade100 
+                                  : Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: selectedType == 'expense' 
+                                    ? Colors.red 
+                                    : Colors.grey.shade300,
+                              ),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'Expense',
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w600,
+                                  color: selectedType == 'expense' 
+                                      ? Colors.red 
+                                      : Colors.grey.shade600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setModalState(() => selectedType = 'income'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              color: selectedType == 'income' 
+                                  ? Colors.green.shade100 
+                                  : Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: selectedType == 'income' 
+                                    ? Colors.green 
+                                    : Colors.grey.shade300,
+                              ),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'Income',
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w600,
+                                  color: selectedType == 'income' 
+                                      ? Colors.green 
+                                      : Colors.grey.shade600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Title
+                  TextField(
+                    controller: titleController,
+                    decoration: InputDecoration(
+                      labelText: 'Title',
+                      hintText: 'e.g., Fertilizer purchase',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // Amount
+                  TextField(
+                    controller: amountController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'Amount (EGX)',
+                      hintText: '0.00',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // Category Dropdown
+                  if (selectedType == 'expense')
+                    DropdownButtonFormField<String>(
+                      value: selectedCategory,
+                      decoration: InputDecoration(
+                        labelText: 'Category',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      items: ExpenseCategory.defaults.map((cat) {
+                        return DropdownMenuItem(
+                          value: cat.id,
+                          child: Text(cat.name),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setModalState(() => selectedCategory = value);
+                        }
+                      },
+                    ),
+                  const SizedBox(height: 12),
+                  
+                  // Date Picker
+                  GestureDetector(
+                    onTap: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: selectedDate,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime.now(),
+                      );
+                      if (date != null) {
+                        setModalState(() => selectedDate = date);
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade400),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.calendar_today, color: Colors.grey.shade600),
+                          const SizedBox(width: 12),
+                          Text(
+                            DateFormat('MMMM d, yyyy').format(selectedDate),
+                            style: GoogleFonts.poppins(fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  // Submit Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        if (titleController.text.isEmpty || amountController.text.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Please fill in all fields')),
+                          );
+                          return;
+                        }
+
+                        final amount = double.tryParse(amountController.text) ?? 0;
+                        if (amount <= 0) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Please enter a valid amount')),
+                          );
+                          return;
+                        }
+
+                        final transaction = FinancialTransaction(
+                          id: '',
+                          userId: '',
+                          title: titleController.text,
+                          amount: amount,
+                          category: selectedType == 'income' ? 'income' : selectedCategory,
+                          date: selectedDate,
+                          transactionType: selectedType,
+                          createdAt: DateTime.now(),
+                        );
+
+                        try {
+                          await _expenseService.addTransaction(transaction);
+                          Navigator.pop(context);
+                          _loadFinancialSummary();
+                          HapticFeedback.mediumImpact();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Transaction added successfully!'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.teal.shade600,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        'Add Transaction',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 }
-
-// Models
-class ExpenseCategory {
-  final String name;
-  final double amount;
-  final IconData icon;
-  final Color color;
-
-  ExpenseCategory(this.name, this.amount, this.icon, this.color);
-}
-
-class Transaction {
-  final String title;
-  final double amount;
-  final String category;
-  final DateTime date;
-
-  Transaction(this.title, this.amount, this.category, this.date);
-}
-

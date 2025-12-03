@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/product_service.dart';
 import 'product_detail_screen.dart';
 import 'cart_screen.dart';
 
@@ -11,6 +13,7 @@ class MarketScreen extends StatefulWidget {
 }
 
 class _MarketScreenState extends State<MarketScreen> with SingleTickerProviderStateMixin {
+  final ProductService _productService = ProductService();
   String selectedCategory = 'All';
   String searchQuery = '';
   String sortBy = 'newest'; // newest, price_low, price_high, popular
@@ -19,6 +22,10 @@ class _MarketScreenState extends State<MarketScreen> with SingleTickerProviderSt
   
   // Market mode: 'buy' or 'sell'
   int _currentTabIndex = 0;
+  
+  // Seller stats
+  SellerStats _sellerStats = SellerStats.empty();
+  bool _isLoadingStats = true;
 
   @override
   void initState() {
@@ -28,7 +35,24 @@ class _MarketScreenState extends State<MarketScreen> with SingleTickerProviderSt
       setState(() {
         _currentTabIndex = _tabController.index;
       });
+      if (_currentTabIndex == 1) {
+        _loadSellerStats();
+      }
     });
+  }
+
+  Future<void> _loadSellerStats() async {
+    setState(() => _isLoadingStats = true);
+    try {
+      final stats = await _productService.getSellerStats();
+      setState(() {
+        _sellerStats = stats;
+        _isLoadingStats = false;
+      });
+    } catch (e) {
+      print('Error loading seller stats: $e');
+      setState(() => _isLoadingStats = false);
+    }
   }
 
   @override
@@ -194,47 +218,54 @@ class _MarketScreenState extends State<MarketScreen> with SingleTickerProviderSt
                   _showNotifications(context);
                 },
               ),
-              Stack(
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.shopping_cart_outlined, 
-                      color: Colors.teal.shade600, 
-                      size: 24
-                    ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const CartScreen(),
+              StreamBuilder<List<CartItem>>(
+                stream: _productService.getCartStream(),
+                builder: (context, cartSnapshot) {
+                  final cartCount = cartSnapshot.data?.fold<int>(0, (sum, item) => sum + item.quantity) ?? 0;
+                  return Stack(
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.shopping_cart_outlined, 
+                          color: Colors.teal.shade600, 
+                          size: 24
                         ),
-                      );
-                    },
-                  ),
-                  Positioned(
-                    right: 8,
-                    top: 8,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const CartScreen(),
+                            ),
+                          );
+                        },
                       ),
-                      constraints: const BoxConstraints(
-                        minWidth: 16,
-                        minHeight: 16,
-                      ),
-                      child: Text(
-                        '3',
-                        style: GoogleFonts.poppins(
-                          fontSize: 10,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
+                      if (cartCount > 0)
+                        Positioned(
+                          right: 8,
+                          top: 8,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 16,
+                              minHeight: 16,
+                            ),
+                            child: Text(
+                              cartCount > 99 ? '99+' : '$cartCount',
+                              style: GoogleFonts.poppins(
+                                fontSize: 10,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
                         ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-                ],
+                    ],
+                  );
+                },
               ),
               const SizedBox(width: 4),
               CircleAvatar(
@@ -486,160 +517,93 @@ class _MarketScreenState extends State<MarketScreen> with SingleTickerProviderSt
   }
 
   Widget _buildProductsGrid() {
-    // Enhanced product data with more details
-    final products = [
-      {
-        'image': 'assets/images/equip1.jpg',
-        'seller': 'AgriTech Store',
-        'name': 'Modern Irrigation System',
-        'price': 'EGX 8,500',
-        'rating': 4.5,
-        'reviews': 120,
-        'category': 'Equipment',
-        'inStock': true,
-        'discount': '15% OFF',
-      },
-      {
-        'image': 'assets/images/Equip1.avif',
-        'seller': 'Farm Solutions',
-        'name': 'Drip Irrigation Kit',
-        'price': 'EGX 4,200',
-        'rating': 4.7,
-        'reviews': 85,
-        'category': 'Irrigation',
-        'inStock': true,
-      },
-      {
-        'image': 'assets/images/truck.png',
-        'seller': 'Heavy Machinery Co.',
-        'name': 'Agricultural Truck',
-        'price': 'EGX 150,000',
-        'rating': 4.3,
-        'reviews': 42,
-        'category': 'Equipment',
-        'inStock': true,
-      },
-      {
-        'image': 'assets/images/eq3.jpg',
-        'seller': 'Tractor World',
-        'name': 'Heavy Duty Tractor',
-        'price': 'EGX 95,000',
-        'rating': 4.8,
-        'reviews': 156,
-        'category': 'Equipment',
-        'inStock': false,
-        'discount': '10% OFF',
-      },
-      {
-        'image': 'assets/images/eq2.jpg',
-        'seller': 'Farm Equipment Plus',
-        'name': 'Multi-Purpose Machine',
-        'price': 'EGX 12,300',
-        'rating': 4.2,
-        'reviews': 67,
-        'category': 'Equipment',
-        'inStock': true,
-      },
-      {
-        'image': 'assets/images/Cultivator.png',
-        'seller': 'Agri Mart',
-        'name': 'Soil Cultivator',
-        'price': 'EGX 6,800',
-        'rating': 4.6,
-        'reviews': 98,
-        'category': 'Tools',
-        'inStock': true,
-      },
-      {
-        'image': 'assets/images/eq4.png',
-        'seller': 'Harvest Solutions',
-        'name': 'Crop Reaper Machine',
-        'price': 'EGX 45,000',
-        'rating': 4.4,
-        'reviews': 73,
-        'category': 'Equipment',
-        'inStock': true,
-        'discount': '20% OFF',
-      },
-      {
-        'image': 'assets/images/png-transparent-farming-simulator-2011-case-ih-agricultural-machinery-agriculture-farm-grass-agriculture-vehicle.png',
-        'seller': 'Pro Harvest',
-        'name': 'Advanced Harvester',
-        'price': 'EGX 180,000',
-        'rating': 4.9,
-        'reviews': 201,
-        'category': 'Equipment',
-        'inStock': true,
-      },
-      {
-        'image': 'assets/images/Mould-Board-Plough.png',
-        'seller': 'Plough Masters',
-        'name': 'Mould-Board Plough',
-        'price': 'EGX 7,500',
-        'rating': 4.5,
-        'reviews': 112,
-        'category': 'Tools',
-        'inStock': true,
-      },
-    ];
-
-    // Filter products based on search and category
-    final filteredProducts = products.where((product) {
-      final matchesSearch = searchQuery.isEmpty ||
-          product['name'].toString().toLowerCase().contains(searchQuery.toLowerCase()) ||
-          product['seller'].toString().toLowerCase().contains(searchQuery.toLowerCase());
-      
-      final matchesCategory = selectedCategory == 'All' ||
-          product['category'] == selectedCategory;
-      
-      final matchesStock = !showOnlyInStock || product['inStock'] == true;
-      
-      return matchesSearch && matchesCategory && matchesStock;
-    }).toList();
-
-    if (filteredProducts.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.inventory_2_outlined,
-              size: 80,
-              color: Colors.grey.shade400,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No products found',
-              style: GoogleFonts.poppins(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey.shade600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Try adjusting your filters',
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                color: Colors.grey.shade500,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return GridView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 0.70,
+    // Use Firebase stream with fallback to demo data
+    return StreamBuilder<List<MarketProduct>>(
+      stream: _productService.getProductsStream(
+        category: selectedCategory.toLowerCase() == 'all' ? null : selectedCategory.toLowerCase(),
+        searchQuery: searchQuery.isEmpty ? null : searchQuery,
+        inStockOnly: showOnlyInStock,
+        sortBy: sortBy,
       ),
-      itemCount: filteredProducts.length,
-      itemBuilder: (context, index) {
-        return _buildEnhancedProductCard(filteredProducts[index]);
+      builder: (context, snapshot) {
+        // Show demo data while loading or if no Firebase data
+        List<Map<String, dynamic>> products = ProductService.getDemoProducts();
+        
+        if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+          // Convert MarketProduct to Map for display
+          products = snapshot.data!.map((p) => {
+            'image': p.mainImageUrl ?? 'assets/images/equip1.jpg',
+            'seller': p.sellerName,
+            'name': p.name,
+            'price': 'EGX ${p.price.toStringAsFixed(0)}',
+            'rating': p.rating,
+            'reviews': p.reviewsCount,
+            'category': p.category,
+            'inStock': p.inStock,
+            'discount': p.discount,
+            'id': p.id,
+          }).toList();
+        }
+
+        // Filter products based on search and category (for demo data)
+        final filteredProducts = products.where((product) {
+          final matchesSearch = searchQuery.isEmpty ||
+              product['name'].toString().toLowerCase().contains(searchQuery.toLowerCase()) ||
+              product['seller'].toString().toLowerCase().contains(searchQuery.toLowerCase());
+          
+          final matchesCategory = selectedCategory == 'All' ||
+              product['category'].toString().toLowerCase() == selectedCategory.toLowerCase();
+          
+          final matchesStock = !showOnlyInStock || product['inStock'] == true;
+          
+          return matchesSearch && matchesCategory && matchesStock;
+        }).toList();
+
+        if (filteredProducts.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.inventory_2_outlined,
+                  size: 80,
+                  color: Colors.grey.shade400,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'No products found',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Try adjusting your filters',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: Colors.grey.shade500,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return GridView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 0.70,
+          ),
+          itemCount: filteredProducts.length,
+          itemBuilder: (context, index) {
+            return _buildEnhancedProductCard(filteredProducts[index]);
+          },
+        );
       },
     );
   }
@@ -1177,68 +1141,72 @@ class _MarketScreenState extends State<MarketScreen> with SingleTickerProviderSt
   }
 
   Widget _buildMyListingsGrid() {
-    // Sample user's listings
-    final myListings = [
-      {
-        'image': 'assets/images/Tomato.jpg',
-        'name': 'Fresh Organic Tomatoes',
-        'price': 'EGX 25/kg',
-        'category': 'Vegetables',
-        'status': 'Active',
-        'views': 142,
-        'interested': 23,
-        'stock': '150 kg',
-      },
-      {
-        'image': 'assets/images/wheat.jpg',
-        'name': 'Premium Wheat Grain',
-        'price': 'EGX 8/kg',
-        'category': 'Grains',
-        'status': 'Active',
-        'views': 98,
-        'interested': 15,
-        'stock': '500 kg',
-      },
-      {
-        'image': 'assets/images/Cucembers.jpg',
-        'name': 'Organic Cucumbers',
-        'price': 'EGX 18/kg',
-        'category': 'Vegetables',
-        'status': 'Sold',
-        'views': 76,
-        'interested': 12,
-        'stock': '0 kg',
-      },
-      {
-        'image': 'assets/images/milk.jpg',
-        'name': 'Fresh Milk',
-        'price': 'EGX 15/L',
-        'category': 'Dairy',
-        'status': 'Active',
-        'views': 234,
-        'interested': 45,
-        'stock': '80 L',
-      },
-    ];
+    return StreamBuilder<List<MarketProduct>>(
+      stream: _productService.getMyProductsStream(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 0.75,
-      ),
-      itemCount: myListings.length,
-      itemBuilder: (context, index) {
-        return _buildMyListingCard(myListings[index]);
+        if (snapshot.hasError) {
+          return Center(
+            child: Text(
+              'Error loading listings',
+              style: GoogleFonts.poppins(color: Colors.red),
+            ),
+          );
+        }
+
+        final myListings = snapshot.data ?? [];
+
+        if (myListings.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey.shade400),
+                const SizedBox(height: 16),
+                Text(
+                  'No listings yet',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Tap the + button to add your first product',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: Colors.grey.shade500,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 0.75,
+          ),
+          itemCount: myListings.length,
+          itemBuilder: (context, index) {
+            return _buildMyListingCard(myListings[index]);
+          },
+        );
       },
     );
   }
 
-  Widget _buildMyListingCard(Map<String, dynamic> listing) {
-    final isActive = listing['status'] == 'Active';
+  Widget _buildMyListingCard(MarketProduct listing) {
+    final isActive = listing.isActive;
     
     return Container(
       decoration: BoxDecoration(
@@ -1266,17 +1234,23 @@ class _MarketScreenState extends State<MarketScreen> with SingleTickerProviderSt
                   decoration: BoxDecoration(
                     color: Colors.grey.shade200,
                   ),
-                  child: Image.asset(
-                    listing['image'],
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Icon(
-                        Icons.image,
-                        size: 50,
-                        color: Colors.grey.shade400,
-                      );
-                    },
-                  ),
+                  child: listing.mainImageUrl != null
+                      ? Image.network(
+                          listing.mainImageUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Icon(
+                              Icons.image,
+                              size: 50,
+                              color: Colors.grey.shade400,
+                            );
+                          },
+                        )
+                      : Icon(
+                          Icons.image,
+                          size: 50,
+                          color: Colors.grey.shade400,
+                        ),
                 ),
               ),
               
@@ -1290,7 +1264,7 @@ class _MarketScreenState extends State<MarketScreen> with SingleTickerProviderSt
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    listing['status'],
+                    isActive ? 'Active' : (listing.inStock ? 'Draft' : 'Sold'),
                     style: GoogleFonts.poppins(
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
@@ -1312,8 +1286,46 @@ class _MarketScreenState extends State<MarketScreen> with SingleTickerProviderSt
                     ),
                     child: Icon(Icons.more_vert, size: 18, color: Colors.grey.shade700),
                   ),
+                  onSelected: (value) async {
+                    if (value == 'delete') {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: Text('Delete Listing', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                          content: Text('Are you sure you want to delete "${listing.name}"?', style: GoogleFonts.poppins()),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: Text('Cancel', style: GoogleFonts.poppins()),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: Text('Delete', style: GoogleFonts.poppins(color: Colors.red)),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true) {
+                        try {
+                          await _productService.deleteProduct(listing.id);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Listing deleted successfully')),
+                            );
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Error deleting listing: $e')),
+                            );
+                          }
+                        }
+                      }
+                    }
+                  },
                   itemBuilder: (context) => [
                     PopupMenuItem(
+                      value: 'edit',
                       child: Row(
                         children: [
                           Icon(Icons.edit, size: 18, color: Colors.grey.shade700),
@@ -1323,6 +1335,7 @@ class _MarketScreenState extends State<MarketScreen> with SingleTickerProviderSt
                       ),
                     ),
                     PopupMenuItem(
+                      value: 'delete',
                       child: Row(
                         children: [
                           Icon(Icons.delete, size: 18, color: Colors.red),
@@ -1349,7 +1362,7 @@ class _MarketScreenState extends State<MarketScreen> with SingleTickerProviderSt
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        listing['name'],
+                        listing.name,
                         style: GoogleFonts.poppins(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
@@ -1360,7 +1373,7 @@ class _MarketScreenState extends State<MarketScreen> with SingleTickerProviderSt
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        listing['price'],
+                        'EGX ${listing.price.toStringAsFixed(0)}',
                         style: GoogleFonts.poppins(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -1378,17 +1391,17 @@ class _MarketScreenState extends State<MarketScreen> with SingleTickerProviderSt
                           Icon(Icons.visibility_outlined, size: 14, color: Colors.grey.shade600),
                           const SizedBox(width: 4),
                           Text(
-                            '${listing['views']} views',
+                            '${listing.views} views',
                             style: GoogleFonts.poppins(
                               fontSize: 11,
                               color: Colors.grey.shade600,
                             ),
                           ),
                           const SizedBox(width: 12),
-                          Icon(Icons.favorite_border, size: 14, color: Colors.grey.shade600),
+                          Icon(Icons.favorite_outline, size: 14, color: Colors.grey.shade600),
                           const SizedBox(width: 4),
                           Text(
-                            '${listing['interested']}',
+                            '${listing.interestedCount}',
                             style: GoogleFonts.poppins(
                               fontSize: 11,
                               color: Colors.grey.shade600,
@@ -1402,7 +1415,7 @@ class _MarketScreenState extends State<MarketScreen> with SingleTickerProviderSt
                           Icon(Icons.inventory_outlined, size: 14, color: Colors.grey.shade600),
                           const SizedBox(width: 4),
                           Text(
-                            'Stock: ${listing['stock']}',
+                            'Stock: ${listing.stock} ${listing.stockUnit}',
                             style: GoogleFonts.poppins(
                               fontSize: 11,
                               color: Colors.grey.shade600,
@@ -1438,19 +1451,119 @@ class _MarketScreenState extends State<MarketScreen> with SingleTickerProviderSt
   }
 
   // Supporting Functions
-  void _addToCart(Map<String, dynamic> product) {
+  Future<void> _addToCart(Map<String, dynamic> product) async {
+    final productId = product['id']?.toString();
+    
+    // Show loading indicator
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          '${product['name']} added to cart',
-          style: GoogleFonts.poppins(),
+        content: Row(
+          children: [
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                color: Colors.white,
+                strokeWidth: 2,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Adding to cart...',
+              style: GoogleFonts.poppins(),
+            ),
+          ],
         ),
         backgroundColor: Colors.teal.shade600,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        duration: const Duration(seconds: 2),
+        duration: const Duration(seconds: 1),
       ),
     );
+
+    try {
+      // If product has an ID, fetch the full product from Firebase
+      if (productId != null && productId.isNotEmpty) {
+        final marketProduct = await _productService.getProductById(productId);
+        if (marketProduct != null) {
+          await _productService.addToCart(marketProduct);
+          if (mounted) {
+            ScaffoldMessenger.of(context).clearSnackBars();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        '${product['name']} added to cart',
+                        style: GoogleFonts.poppins(),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const CartScreen(),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        'View Cart',
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                backgroundColor: Colors.teal.shade600,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          }
+          return;
+        }
+      }
+      
+      // For demo products or if product not found, show a message
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'This is a demo product. Add real products from the "Sell" tab!',
+              style: GoogleFonts.poppins(),
+            ),
+            backgroundColor: Colors.orange.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Error adding to cart: $e',
+              style: GoogleFonts.poppins(),
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 
   void _showNotifications(BuildContext context) {
@@ -1715,93 +1828,201 @@ class _MarketScreenState extends State<MarketScreen> with SingleTickerProviderSt
   }
 
   void _showAddProductDialog() {
+    final nameController = TextEditingController();
+    final priceController = TextEditingController();
+    final stockController = TextEditingController();
+    final descriptionController = TextEditingController();
+    String selectedCategory = 'Vegetables';
+    bool isLoading = false;
+
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text(
-            'Add New Product',
-            style: GoogleFonts.poppins(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  decoration: InputDecoration(
-                    labelText: 'Product Name',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Text(
+                'Add New Product',
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: nameController,
+                      decoration: InputDecoration(
+                        labelText: 'Product Name',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
                     ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: selectedCategory,
+                      decoration: InputDecoration(
+                        labelText: 'Category',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      items: ['Vegetables', 'Fruits', 'Grains', 'Dairy', 'Livestock', 'Equipment', 'Other']
+                          .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
+                          .toList(),
+                      onChanged: (value) {
+                        setDialogState(() {
+                          selectedCategory = value!;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: priceController,
+                      decoration: InputDecoration(
+                        labelText: 'Price (EGX)',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: stockController,
+                      decoration: InputDecoration(
+                        labelText: 'Stock Quantity',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: descriptionController,
+                      decoration: InputDecoration(
+                        labelText: 'Description',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      maxLines: 3,
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isLoading ? null : () => Navigator.pop(dialogContext),
+                  child: Text(
+                    'Cancel',
+                    style: GoogleFonts.poppins(color: Colors.grey),
                   ),
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  decoration: InputDecoration(
-                    labelText: 'Price (EGX)',
-                    border: OutlineInputBorder(
+                ElevatedButton(
+                  onPressed: isLoading
+                      ? null
+                      : () async {
+                          // Validate inputs
+                          if (nameController.text.trim().isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Please enter a product name', style: GoogleFonts.poppins()),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+
+                          final price = double.tryParse(priceController.text.trim());
+                          if (price == null || price <= 0) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Please enter a valid price', style: GoogleFonts.poppins()),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+
+                          final stock = int.tryParse(stockController.text.trim());
+                          if (stock == null || stock < 0) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Please enter a valid stock quantity', style: GoogleFonts.poppins()),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+
+                          setDialogState(() {
+                            isLoading = true;
+                          });
+
+                          try {
+                            final product = MarketProduct(
+                              id: '',
+                              sellerId: '',
+                              sellerName: '',
+                              name: nameController.text.trim(),
+                              description: descriptionController.text.trim(),
+                              price: price,
+                              category: selectedCategory.toLowerCase(),
+                              stock: stock,
+                              stockUnit: 'units',
+                              createdAt: DateTime.now(),
+                              updatedAt: DateTime.now(),
+                            );
+                            await _productService.addProduct(product);
+
+                            Navigator.pop(dialogContext);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Product added successfully!', style: GoogleFonts.poppins()),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          } catch (e) {
+                            setDialogState(() {
+                              isLoading = false;
+                            });
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error adding product: $e', style: GoogleFonts.poppins()),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.teal.shade600,
+                    shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  decoration: InputDecoration(
-                    labelText: 'Stock Quantity',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  decoration: InputDecoration(
-                    labelText: 'Description',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  maxLines: 3,
+                  child: isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : Text(
+                          'Add Product',
+                          style: GoogleFonts.poppins(color: Colors.white),
+                        ),
                 ),
               ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'Cancel',
-                style: GoogleFonts.poppins(color: Colors.grey),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Product added successfully!', style: GoogleFonts.poppins()),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.teal.shade600,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: Text(
-                'Add Product',
-                style: GoogleFonts.poppins(color: Colors.white),
-              ),
-            ),
-          ],
+            );
+          },
         );
       },
     );

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/product_service.dart';
 import 'checkout_screen.dart';
 
 class CartScreen extends StatefulWidget {
@@ -10,44 +11,18 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
-  // Sample cart items
-  List<Map<String, dynamic>> cartItems = [
-    {
-      'id': 1,
-      'image': 'assets/images/background.png',
-      'name': 'Product name',
-      'detail': 'detail',
-      'price': 100.00,
-      'quantity': 1,
-    },
-    {
-      'id': 2,
-      'image': 'assets/images/background.png',
-      'name': 'Product name',
-      'detail': 'detail',
-      'price': 150.00,
-      'quantity': 1,
-    },
-    {
-      'id': 3,
-      'image': 'assets/images/background.png',
-      'name': 'Product name',
-      'detail': 'detail',
-      'price': 200.00,
-      'quantity': 1,
-    },
-  ];
+  final ProductService _productService = ProductService();
 
   double deliveryFees = 50.00;
   double taxes = 25.00;
   double discount = 20.00;
 
-  double get subtotal {
-    return cartItems.fold(0, (sum, item) => sum + (item['price'] * item['quantity']));
+  double _calculateSubtotal(List<CartItem> items) {
+    return items.fold(0, (sum, item) => sum + item.totalPrice);
   }
 
-  double get total {
-    return subtotal + deliveryFees + taxes - discount;
+  double _calculateTotal(List<CartItem> items) {
+    return _calculateSubtotal(items) + deliveryFees + taxes - discount;
   }
 
   @override
@@ -69,42 +44,128 @@ class _CartScreenState extends State<CartScreen> {
               
               // Cart Content
               Expanded(
-                child: SingleChildScrollView(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        // Cart Items
-                        ...cartItems.map((item) => _buildCartItem(item)),
-                        
-                        const SizedBox(height: 24),
-                        
-                        // Order Summary
-                        _buildOrderSummary(),
-                        
-                        const SizedBox(height: 24),
-                        
-                        // Checkout Button
-                        _buildCheckoutButton(),
-                        
-                        const SizedBox(height: 12),
-                        
-                        // Secure Payment Text
-                        Text(
-                          'Secure payment powered by Otfha',
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
-                          ),
+                child: StreamBuilder<List<CartItem>>(
+                  stream: _productService.getCartStream(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    if (snapshot.hasError) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Error loading cart',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
+                      );
+                    }
+
+                    final cartItems = snapshot.data ?? [];
+
+                    if (cartItems.isEmpty) {
+                      return _buildEmptyCart();
+                    }
+
+                    return SingleChildScrollView(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            // Cart Items
+                            ...cartItems.map((item) => _buildCartItem(item)),
+                            
+                            const SizedBox(height: 24),
+                            
+                            // Order Summary
+                            _buildOrderSummary(cartItems),
+                            
+                            const SizedBox(height: 24),
+                            
+                            // Checkout Button
+                            _buildCheckoutButton(cartItems),
+                            
+                            const SizedBox(height: 12),
+                            
+                            // Secure Payment Text
+                            Text(
+                              'Secure payment powered by Otfha',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyCart() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.shopping_cart_outlined,
+            size: 80,
+            color: Colors.grey.shade400,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Your cart is empty',
+            style: GoogleFonts.poppins(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Add some products to your cart\nfrom the marketplace',
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              color: Colors.grey.shade500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.teal.shade600,
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(25),
+              ),
+            ),
+            child: Text(
+              'Browse Products',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -125,12 +186,10 @@ class _CartScreenState extends State<CartScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Logo
-          Image.asset(
-            'assets/images/logo.png',
-            width: 50,
-            height: 50,
-            fit: BoxFit.contain,
+          // Back button
+          IconButton(
+            icon: Icon(Icons.arrow_back, color: Colors.teal.shade600),
+            onPressed: () => Navigator.pop(context),
           ),
           
           // Title
@@ -174,7 +233,7 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  Widget _buildCartItem(Map<String, dynamic> item) {
+  Widget _buildCartItem(CartItem item) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
@@ -201,17 +260,23 @@ class _CartScreenState extends State<CartScreen> {
               decoration: BoxDecoration(
                 color: Colors.grey.shade200,
               ),
-              child: Image.asset(
-                item['image'],
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Icon(
-                    Icons.image,
-                    size: 30,
-                    color: Colors.grey.shade400,
-                  );
-                },
-              ),
+              child: item.imageUrl != null && item.imageUrl!.isNotEmpty
+                  ? Image.network(
+                      item.imageUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Icon(
+                          Icons.image,
+                          size: 30,
+                          color: Colors.grey.shade400,
+                        );
+                      },
+                    )
+                  : Icon(
+                      Icons.shopping_bag,
+                      size: 30,
+                      color: Colors.grey.shade400,
+                    ),
             ),
           ),
           
@@ -223,28 +288,22 @@ class _CartScreenState extends State<CartScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item['name'],
+                  item.productName,
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: Colors.black87,
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  item['detail'],
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '\$${item['price'].toStringAsFixed(2)}',
+                  'EGP ${item.price.toStringAsFixed(2)}',
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                    color: Colors.teal.shade700,
                   ),
                 ),
               ],
@@ -256,11 +315,7 @@ class _CartScreenState extends State<CartScreen> {
             children: [
               // Plus Button
               GestureDetector(
-                onTap: () {
-                  setState(() {
-                    item['quantity']++;
-                  });
-                },
+                onTap: () => _updateQuantity(item, item.quantity + 1),
                 child: Container(
                   width: 24,
                   height: 24,
@@ -280,7 +335,7 @@ class _CartScreenState extends State<CartScreen> {
               
               // Quantity
               Text(
-                '${item['quantity']}',
+                '${item.quantity}',
                 style: GoogleFonts.poppins(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -293,12 +348,9 @@ class _CartScreenState extends State<CartScreen> {
               // Minus Button
               GestureDetector(
                 onTap: () {
-                  if (item['quantity'] > 1) {
-                    setState(() {
-                      item['quantity']--;
-                    });
+                  if (item.quantity > 1) {
+                    _updateQuantity(item, item.quantity - 1);
                   } else {
-                    // Remove item from cart
                     _showRemoveItemDialog(item);
                   }
                 },
@@ -323,7 +375,25 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  Widget _buildOrderSummary() {
+  Future<void> _updateQuantity(CartItem item, int newQuantity) async {
+    try {
+      await _productService.updateCartItemQuantity(item.productId, newQuantity);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating quantity: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildOrderSummary(List<CartItem> items) {
+    final subtotal = _calculateSubtotal(items);
+    final total = _calculateTotal(items);
+    
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -339,13 +409,15 @@ class _CartScreenState extends State<CartScreen> {
       ),
       child: Column(
         children: [
-          _buildSummaryRow('Delivery fees :', '\$${deliveryFees.toStringAsFixed(2)}'),
+          _buildSummaryRow('Subtotal :', 'EGP ${subtotal.toStringAsFixed(2)}'),
           const SizedBox(height: 8),
-          _buildSummaryRow('Taxes :', '\$${taxes.toStringAsFixed(2)}'),
+          _buildSummaryRow('Delivery fees :', 'EGP ${deliveryFees.toStringAsFixed(2)}'),
           const SizedBox(height: 8),
-          _buildSummaryRow('Discount:', '-\$${discount.toStringAsFixed(2)}', isDiscount: true),
+          _buildSummaryRow('Taxes :', 'EGP ${taxes.toStringAsFixed(2)}'),
+          const SizedBox(height: 8),
+          _buildSummaryRow('Discount:', '-EGP ${discount.toStringAsFixed(2)}', isDiscount: true),
           const Divider(height: 24, thickness: 1),
-          _buildSummaryRow('Total', '\$${total.toStringAsFixed(2)}', isTotal: true),
+          _buildSummaryRow('Total', 'EGP ${total.toStringAsFixed(2)}', isTotal: true),
         ],
       ),
     );
@@ -375,14 +447,11 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  Widget _buildCheckoutButton() {
+  Widget _buildCheckoutButton(List<CartItem> items) {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: () {
-          // Proceed to checkout logic
-          _showCheckoutDialog();
-        },
+        onPressed: items.isEmpty ? null : () => _proceedToCheckout(items),
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.teal.shade600,
           padding: const EdgeInsets.symmetric(vertical: 16),
@@ -403,7 +472,7 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  void _showRemoveItemDialog(Map<String, dynamic> item) {
+  void _showRemoveItemDialog(CartItem item) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -416,7 +485,7 @@ class _CartScreenState extends State<CartScreen> {
             style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
           ),
           content: Text(
-            'Do you want to remove this item from your cart?',
+            'Do you want to remove "${item.productName}" from your cart?',
             style: GoogleFonts.poppins(),
           ),
           actions: [
@@ -430,11 +499,28 @@ class _CartScreenState extends State<CartScreen> {
               ),
             ),
             TextButton(
-              onPressed: () {
-                setState(() {
-                  cartItems.remove(item);
-                });
+              onPressed: () async {
                 Navigator.pop(context);
+                try {
+                  await _productService.removeFromCart(item.productId);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('${item.productName} removed from cart'),
+                        backgroundColor: Colors.teal.shade600,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error removing item: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
               },
               child: Text(
                 'Remove',
@@ -447,20 +533,18 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  void _showCheckoutDialog() {
-    // Navigate to checkout screen
+  void _proceedToCheckout(List<CartItem> items) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => CheckoutScreen(
-          cartItems: cartItems,
+          cartItems: items,
           deliveryFees: deliveryFees,
           taxes: taxes,
           discount: discount,
-          total: total,
+          total: _calculateTotal(items),
         ),
       ),
     );
   }
 }
-

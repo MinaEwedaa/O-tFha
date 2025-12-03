@@ -49,5 +49,9 @@
 	<string>We need your location to provide accurate weather information for your area.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>We need your location to provide accurate weather information for your area.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>نحتاج الوصول للميكروفون للتحدث مع المساعد الصوتي</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>نحتاج التعرف على الصوت لتحويل كلامك إلى نص</string>
 </dict>
 </plist>

@@ -44,6 +44,34 @@ class LanguageService extends ChangeNotifier {
   
   String get languageSwitch => isArabic ? 'English' : 'العربية';
 
+  // Community Services
+  String get community => isArabic ? 'المجتمع' : 'Community';
+  String get communityServices => isArabic ? 'خدمات المجتمع' : 'Community Services';
+  String get discussions => isArabic ? 'نقاشات' : 'Discussions';
+  String get equipmentSharing => isArabic ? 'مشاركة المعدات' : 'Equipment Sharing';
+  String get expertConsultation => isArabic ? 'استشارات الخبراء' : 'Expert Consultation';
+  String get communityEvents => isArabic ? 'فعاليات المجتمع' : 'Community Events';
+  String get forum => isArabic ? 'المنتدى' : 'Forum';
+  String get share => isArabic ? 'مشاركة' : 'Share';
+  String get experts => isArabic ? 'خبراء' : 'Experts';
+  String get events => isArabic ? 'فعاليات' : 'Events';
+  String get postQuestion => isArabic ? 'اطرح سؤال' : 'Ask a Question';
+  String get shareTip => isArabic ? 'شارك نصيحة' : 'Share a Tip';
+  String get createPost => isArabic ? 'إنشاء منشور' : 'Create Post';
+  String get bookNow => isArabic ? 'احجز الآن' : 'Book Now';
+  String get contact => isArabic ? 'تواصل' : 'Contact';
+  String get registerNow => isArabic ? 'سجل الآن' : 'Register Now';
+  String get available => isArabic ? 'متاح' : 'Available';
+  String get perDay => isArabic ? '/يوم' : '/day';
+  String get perHour => isArabic ? '/ساعة' : '/hr';
+  String get free => isArabic ? 'مجاني' : 'Free';
+  String get attending => isArabic ? 'مشارك' : 'attending';
+  String get upcomingEvents => isArabic ? 'الفعاليات القادمة' : 'Upcoming Events';
+  String get shareYourEquipment => isArabic ? 'شارك معداتك الزراعية' : 'Share Your Equipment';
+  String get expertConsultations => isArabic ? 'استشارات زراعية' : 'Expert Consultations';
+  String get connectWithFarmers => isArabic ? 'تواصل مع المزارعين الآخرين' : 'Connect with fellow farmers';
+  String get bookConsultation => isArabic ? 'احجز استشارة' : 'Book Consultation';
+
   // Days of the week
   String getDayOfWeek(String englishDay) {
     if (!isArabic) return englishDay;
@@ -137,6 +165,9 @@ class LanguageService extends ChangeNotifier {
   MainAxisAlignment get mainAxisAlignmentStart =>
       isArabic ? MainAxisAlignment.end : MainAxisAlignment.start;
 }
+
+
+
 
 
 

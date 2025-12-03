@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/product_service.dart';
 import 'cart_screen.dart';
 
 class ProductDetailScreen extends StatefulWidget {
@@ -15,8 +16,10 @@ class ProductDetailScreen extends StatefulWidget {
 }
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
+  final ProductService _productService = ProductService();
   int quantity = 1;
   bool isDescriptionExpanded = false;
+  bool _isAddingToCart = false;
 
   @override
   Widget build(BuildContext context) {
@@ -99,12 +102,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Logo
-          Image.asset(
-            'assets/images/logo.png',
-            width: 50,
-            height: 50,
-            fit: BoxFit.contain,
+          // Back button
+          IconButton(
+            icon: Icon(Icons.arrow_back, color: Colors.teal.shade600),
+            onPressed: () => Navigator.pop(context),
           ),
           
           // Title
@@ -124,24 +125,51 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           // Right side icons
           Row(
             children: [
-              Text(
-                'العربيّة',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  color: Colors.teal.shade600,
-                ),
-              ),
-              const SizedBox(width: 12),
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const CartScreen(),
-                    ),
+              StreamBuilder<List<CartItem>>(
+                stream: _productService.getCartStream(),
+                builder: (context, cartSnapshot) {
+                  final cartCount = cartSnapshot.data?.fold<int>(0, (sum, item) => sum + item.quantity) ?? 0;
+                  return Stack(
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const CartScreen(),
+                            ),
+                          );
+                        },
+                        child: Icon(Icons.shopping_cart_outlined, color: Colors.teal.shade600, size: 24),
+                      ),
+                      if (cartCount > 0)
+                        Positioned(
+                          right: -4,
+                          top: -4,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 16,
+                              minHeight: 16,
+                            ),
+                            child: Text(
+                              cartCount > 99 ? '99+' : '$cartCount',
+                              style: GoogleFonts.poppins(
+                                fontSize: 10,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                    ],
                   );
                 },
-                child: Icon(Icons.shopping_cart_outlined, color: Colors.teal.shade600, size: 24),
               ),
               const SizedBox(width: 12),
               CircleAvatar(
@@ -161,6 +189,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 
   Widget _buildProductImage() {
+    final imageUrl = widget.product['image'] ?? '';
+    final isNetworkImage = imageUrl.startsWith('http');
+    
     return Container(
       width: double.infinity,
       height: 280,
@@ -174,19 +205,33 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         borderRadius: const BorderRadius.vertical(
           bottom: Radius.circular(20),
         ),
-        child: Image.asset(
-          widget.product['image'] ?? 'assets/images/background.png',
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Center(
-              child: Icon(
-                Icons.image,
-                size: 80,
-                color: Colors.grey.shade400,
+        child: isNetworkImage
+            ? Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Center(
+                    child: Icon(
+                      Icons.image,
+                      size: 80,
+                      color: Colors.grey.shade400,
+                    ),
+                  );
+                },
+              )
+            : Image.asset(
+                imageUrl.isNotEmpty ? imageUrl : 'assets/images/background.png',
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Center(
+                    child: Icon(
+                      Icons.image,
+                      size: 80,
+                      color: Colors.grey.shade400,
+                    ),
+                  );
+                },
               ),
-            );
-          },
-        ),
       ),
     );
   }
@@ -201,29 +246,26 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Text(
-                'Product Name - ',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  color: Colors.grey.shade700,
-                ),
+          Expanded(
+            child: Text(
+              widget.product['name'] ?? 'Product Name',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
               ),
-              Text(
-                widget.product['name'] ?? 'Subname',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
-              ),
-            ],
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
-          Icon(
-            Icons.favorite_border,
-            color: Colors.teal.shade600,
-            size: 24,
+          const SizedBox(width: 8),
+          Text(
+            widget.product['price'] ?? 'EGX 0',
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: Colors.teal.shade700,
+            ),
           ),
         ],
       ),
@@ -231,6 +273,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 
   Widget _buildSellerInfo() {
+    final rating = (widget.product['rating']?.toDouble() ?? 3.5);
+    final int fullStars = rating.floor();
+    final bool hasHalfStar = rating - fullStars >= 0.5;
+    final int emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+    
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -264,20 +311,29 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    ...List.generate(3, (index) => Icon(
+                    ...List.generate(fullStars, (index) => Icon(
                       Icons.star,
                       size: 14,
                       color: Colors.teal.shade600,
                     )),
-                    Icon(
-                      Icons.star_half,
-                      size: 14,
-                      color: Colors.teal.shade600,
-                    ),
-                    Icon(
+                    if (hasHalfStar)
+                      Icon(
+                        Icons.star_half,
+                        size: 14,
+                        color: Colors.teal.shade600,
+                      ),
+                    ...List.generate(emptyStars, (index) => Icon(
                       Icons.star_border,
                       size: 14,
                       color: Colors.teal.shade600,
+                    )),
+                    const SizedBox(width: 8),
+                    Text(
+                      '(${widget.product['reviews'] ?? 0} reviews)',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
                     ),
                   ],
                 ),
@@ -344,19 +400,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         // Add to Cart Button
         Expanded(
           child: ElevatedButton(
-            onPressed: () {
-              // Add to cart logic
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'Added $quantity item(s) to cart',
-                    style: GoogleFonts.poppins(),
-                  ),
-                  backgroundColor: Colors.teal.shade600,
-                  duration: const Duration(seconds: 2),
-                ),
-              );
-            },
+            onPressed: _isAddingToCart ? null : _addToCart,
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.teal.shade600,
               padding: const EdgeInsets.symmetric(vertical: 14),
@@ -365,18 +409,118 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               ),
               elevation: 0,
             ),
-            child: Text(
-              'Add to cart',
-              style: GoogleFonts.poppins(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-                color: Colors.white,
-              ),
-            ),
+            child: _isAddingToCart
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : Text(
+                    'Add to cart',
+                    style: GoogleFonts.poppins(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white,
+                    ),
+                  ),
           ),
         ),
       ],
     );
+  }
+
+  Future<void> _addToCart() async {
+    final productId = widget.product['id']?.toString();
+    
+    setState(() => _isAddingToCart = true);
+
+    try {
+      // If product has an ID, fetch it from Firebase and add to cart
+      if (productId != null && productId.isNotEmpty) {
+        final marketProduct = await _productService.getProductById(productId);
+        if (marketProduct != null) {
+          await _productService.addToCart(marketProduct, quantity: quantity);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Added $quantity item(s) to cart',
+                        style: GoogleFonts.poppins(),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const CartScreen(),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        'View Cart',
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                backgroundColor: Colors.teal.shade600,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          }
+          return;
+        }
+      }
+      
+      // For demo products
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'This is a demo product. Add real products from the marketplace!',
+              style: GoogleFonts.poppins(),
+            ),
+            backgroundColor: Colors.orange.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Error adding to cart: $e',
+              style: GoogleFonts.poppins(),
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isAddingToCart = false);
+      }
+    }
   }
 
   Widget _buildDescription() {
@@ -434,35 +578,41 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 
   Widget _buildTags() {
-    return Row(
+    final inStock = widget.product['inStock'] ?? true;
+    
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
       children: [
-        _buildTag(Icons.check_circle_outline, 'In stock'),
-        const SizedBox(width: 12),
+        _buildTag(
+          inStock ? Icons.check_circle_outline : Icons.cancel_outlined, 
+          inStock ? 'In stock' : 'Out of stock',
+          color: inStock ? null : Colors.red,
+        ),
         _buildTag(Icons.eco_outlined, 'Organic'),
-        const SizedBox(width: 12),
         _buildTag(Icons.local_shipping_outlined, 'Ships within 2-3 days'),
       ],
     );
   }
 
-  Widget _buildTag(IconData icon, String text) {
+  Widget _buildTag(IconData icon, String text, {Color? color}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.grey.shade100,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: color ?? Colors.grey.shade300),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: Colors.grey.shade700),
+          Icon(icon, size: 14, color: color ?? Colors.grey.shade700),
           const SizedBox(width: 6),
           Text(
             text,
             style: GoogleFonts.poppins(
               fontSize: 11,
-              color: Colors.grey.shade700,
+              color: color ?? Colors.grey.shade700,
             ),
           ),
         ],
@@ -608,4 +758,3 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 }
-

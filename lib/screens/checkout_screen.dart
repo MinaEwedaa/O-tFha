@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/product_service.dart';
 
 class CheckoutScreen extends StatefulWidget {
-  final List<Map<String, dynamic>> cartItems;
+  final List<CartItem> cartItems;
   final double deliveryFees;
   final double taxes;
   final double discount;
@@ -22,15 +23,34 @@ class CheckoutScreen extends StatefulWidget {
 }
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
-  String selectedPaymentMethod = 'cash_on_delivery'; // 'credit_card' or 'cash_on_delivery'
+  final ProductService _productService = ProductService();
+  String selectedPaymentMethod = 'cash_on_delivery';
+  bool _isPlacingOrder = false;
   
-  // Sample delivery address - in real app, this would come from user profile
-  Map<String, String> deliveryAddress = {
-    'label': 'Home',
-    'street': 'street',
-    'city': 'city',
-    'country': 'country',
-  };
+  final _streetController = TextEditingController();
+  final _cityController = TextEditingController();
+  final _countryController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _notesController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Set default values
+    _streetController.text = '';
+    _cityController.text = '';
+    _countryController.text = 'Egypt';
+  }
+
+  @override
+  void dispose() {
+    _streetController.dispose();
+    _cityController.dispose();
+    _countryController.dispose();
+    _phoneController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -92,42 +112,29 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Logo
-          Image.asset(
-            'assets/images/logo.png',
-            width: 50,
-            height: 50,
-            fit: BoxFit.contain,
+          // Back button
+          IconButton(
+            icon: Icon(Icons.arrow_back, color: Colors.teal.shade600),
+            onPressed: () => Navigator.pop(context),
           ),
           
-          const Spacer(),
-          
-          // Right side icons
-          Row(
-            children: [
-              Text(
-                'العربيّة',
+          // Title
+          Expanded(
+            child: Center(
+              child: Text(
+                'Checkout',
                 style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  color: Colors.teal.shade600,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
                 ),
               ),
-              const SizedBox(width: 12),
-              Icon(Icons.shopping_cart_outlined, color: Colors.teal.shade600, size: 24),
-              const SizedBox(width: 12),
-              CircleAvatar(
-                radius: 16,
-                backgroundColor: Colors.teal.shade100,
-                child: Icon(
-                  Icons.person,
-                  color: Colors.teal.shade700,
-                  size: 18,
-                ),
-              ),
-            ],
+            ),
           ),
+          
+          // Placeholder for symmetry
+          const SizedBox(width: 48),
         ],
       ),
     );
@@ -146,71 +153,84 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade200),
+        
+        // Street
+        TextField(
+          controller: _streetController,
+          decoration: InputDecoration(
+            labelText: 'Street Address',
+            labelStyle: GoogleFonts.poppins(),
+            hintText: 'Enter your street address',
+            prefixIcon: Icon(Icons.location_on, color: Colors.teal.shade600),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.teal.shade600, width: 2),
+            ),
           ),
-          child: Row(
-            children: [
-              // Location Icon
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.teal.shade50,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.location_on,
-                  color: Colors.teal.shade600,
-                  size: 24,
-                ),
-              ),
-              
-              const SizedBox(width: 12),
-              
-              // Address Info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      deliveryAddress['label']!,
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${deliveryAddress['street']}, ${deliveryAddress['city']}, ${deliveryAddress['country']}',
-                      style: GoogleFonts.poppins(
-                        fontSize: 13,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              // Edit Button
-              TextButton(
-                onPressed: () {
-                  _showEditAddressDialog();
-                },
-                child: Text(
-                  'Edit',
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    color: Colors.teal.shade600,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
+        ),
+        
+        const SizedBox(height: 12),
+        
+        // City
+        TextField(
+          controller: _cityController,
+          decoration: InputDecoration(
+            labelText: 'City',
+            labelStyle: GoogleFonts.poppins(),
+            hintText: 'Enter your city',
+            prefixIcon: Icon(Icons.location_city, color: Colors.teal.shade600),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.teal.shade600, width: 2),
+            ),
+          ),
+        ),
+        
+        const SizedBox(height: 12),
+        
+        // Phone
+        TextField(
+          controller: _phoneController,
+          keyboardType: TextInputType.phone,
+          decoration: InputDecoration(
+            labelText: 'Phone Number',
+            labelStyle: GoogleFonts.poppins(),
+            hintText: 'Enter your phone number',
+            prefixIcon: Icon(Icons.phone, color: Colors.teal.shade600),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.teal.shade600, width: 2),
+            ),
+          ),
+        ),
+        
+        const SizedBox(height: 12),
+        
+        // Notes
+        TextField(
+          controller: _notesController,
+          maxLines: 2,
+          decoration: InputDecoration(
+            labelText: 'Notes (optional)',
+            labelStyle: GoogleFonts.poppins(),
+            hintText: 'Any special instructions',
+            prefixIcon: Icon(Icons.notes, color: Colors.teal.shade600),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.teal.shade600, width: 2),
+            ),
           ),
         ),
       ],
@@ -235,7 +255,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         _buildPaymentOption(
           value: 'credit_card',
           icon: Icons.credit_card,
-          label: 'credit card',
+          label: 'Credit card',
         ),
         
         const SizedBox(height: 12),
@@ -244,7 +264,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         _buildPaymentOption(
           value: 'cash_on_delivery',
           icon: Icons.money,
-          label: 'cash on delivery',
+          label: 'Cash on delivery',
         ),
       ],
     );
@@ -275,7 +295,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ),
         child: Row(
           children: [
-            // Payment Icon
             Icon(
               icon,
               color: Colors.grey.shade700,
@@ -284,7 +303,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             
             const SizedBox(width: 12),
             
-            // Payment Label
             Expanded(
               child: Text(
                 label,
@@ -295,7 +313,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
             ),
             
-            // Radio Button
             Container(
               width: 24,
               height: 24,
@@ -330,7 +347,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Place order',
+          'Order Summary',
           style: GoogleFonts.poppins(
             fontSize: 18,
             fontWeight: FontWeight.w600,
@@ -353,13 +370,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ),
           child: Column(
             children: [
-              _buildSummaryRow('Delivery fees :', '\$${widget.deliveryFees.toStringAsFixed(2)}'),
+              _buildSummaryRow('Subtotal :', 'EGP ${widget.cartItems.fold(0.0, (sum, item) => sum + item.totalPrice).toStringAsFixed(2)}'),
               const SizedBox(height: 8),
-              _buildSummaryRow('Taxes :', '\$${widget.taxes.toStringAsFixed(2)}'),
+              _buildSummaryRow('Delivery fees :', 'EGP ${widget.deliveryFees.toStringAsFixed(2)}'),
               const SizedBox(height: 8),
-              _buildSummaryRow('Discount:', '-\$${widget.discount.toStringAsFixed(2)}', isDiscount: true),
+              _buildSummaryRow('Taxes :', 'EGP ${widget.taxes.toStringAsFixed(2)}'),
+              const SizedBox(height: 8),
+              _buildSummaryRow('Discount:', '-EGP ${widget.discount.toStringAsFixed(2)}', isDiscount: true),
               const Divider(height: 24, thickness: 1),
-              _buildSummaryRow('Total', '\$${widget.total.toStringAsFixed(2)}', isTotal: true),
+              _buildSummaryRow('Total', 'EGP ${widget.total.toStringAsFixed(2)}', isTotal: true),
             ],
           ),
         ),
@@ -367,7 +386,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
-  Widget _buildOrderItem(Map<String, dynamic> item) {
+  Widget _buildOrderItem(CartItem item) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
@@ -386,17 +405,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               decoration: BoxDecoration(
                 color: Colors.grey.shade200,
               ),
-              child: Image.asset(
-                item['image'],
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Icon(
-                    Icons.image,
-                    size: 25,
-                    color: Colors.grey.shade400,
-                  );
-                },
-              ),
+              child: item.imageUrl != null && item.imageUrl!.isNotEmpty
+                  ? Image.network(
+                      item.imageUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Icon(
+                          Icons.image,
+                          size: 25,
+                          color: Colors.grey.shade400,
+                        );
+                      },
+                    )
+                  : Icon(
+                      Icons.shopping_bag,
+                      size: 25,
+                      color: Colors.grey.shade400,
+                    ),
             ),
           ),
           
@@ -408,16 +433,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item['name'],
+                  item.productName,
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: Colors.black87,
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'x${item['quantity']}',
+                  'x${item.quantity}',
                   style: GoogleFonts.poppins(
                     fontSize: 12,
                     color: Colors.grey.shade600,
@@ -429,7 +456,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           
           // Price
           Text(
-            '\$${(item['price'] * item['quantity']).toStringAsFixed(2)}',
+            'EGP ${item.totalPrice.toStringAsFixed(2)}',
             style: GoogleFonts.poppins(
               fontSize: 14,
               fontWeight: FontWeight.w600,
@@ -469,9 +496,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: () {
-          _showOrderConfirmationDialog();
-        },
+        onPressed: _isPlacingOrder ? null : _placeOrder,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.teal.shade600,
           padding: const EdgeInsets.symmetric(vertical: 16),
@@ -480,104 +505,84 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ),
           elevation: 0,
         ),
-        child: Text(
-          'Place order',
-          style: GoogleFonts.poppins(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-            color: Colors.white,
-          ),
-        ),
+        child: _isPlacingOrder
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
+            : Text(
+                'Place order',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                ),
+              ),
       ),
     );
   }
 
-  void _showEditAddressDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        final streetController = TextEditingController(text: deliveryAddress['street']);
-        final cityController = TextEditingController(text: deliveryAddress['city']);
-        final countryController = TextEditingController(text: deliveryAddress['country']);
-        
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          title: Text(
-            'Edit Delivery Address',
-            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: streetController,
-                decoration: InputDecoration(
-                  labelText: 'Street',
-                  labelStyle: GoogleFonts.poppins(),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: cityController,
-                decoration: InputDecoration(
-                  labelText: 'City',
-                  labelStyle: GoogleFonts.poppins(),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: countryController,
-                decoration: InputDecoration(
-                  labelText: 'Country',
-                  labelStyle: GoogleFonts.poppins(),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: Text(
-                'Cancel',
-                style: GoogleFonts.poppins(color: Colors.grey.shade600),
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  deliveryAddress['street'] = streetController.text;
-                  deliveryAddress['city'] = cityController.text;
-                  deliveryAddress['country'] = countryController.text;
-                });
-                Navigator.pop(context);
-              },
-              child: Text(
-                'Save',
-                style: GoogleFonts.poppins(color: Colors.teal.shade600),
-              ),
-            ),
-          ],
-        );
-      },
+  Future<void> _placeOrder() async {
+    // Validate fields
+    if (_streetController.text.trim().isEmpty) {
+      _showErrorSnackBar('Please enter your street address');
+      return;
+    }
+    if (_cityController.text.trim().isEmpty) {
+      _showErrorSnackBar('Please enter your city');
+      return;
+    }
+    if (_phoneController.text.trim().isEmpty) {
+      _showErrorSnackBar('Please enter your phone number');
+      return;
+    }
+
+    setState(() => _isPlacingOrder = true);
+
+    try {
+      final deliveryAddress = '${_streetController.text}, ${_cityController.text}, ${_countryController.text}';
+      
+      final orderId = await _productService.placeOrder(
+        items: widget.cartItems,
+        deliveryAddress: deliveryAddress,
+        phone: _phoneController.text,
+        notes: _notesController.text.isNotEmpty ? _notesController.text : null,
+        deliveryFee: widget.deliveryFees,
+      );
+
+      if (orderId != null && mounted) {
+        _showOrderConfirmationDialog(orderId);
+      }
+    } catch (e) {
+      if (mounted) {
+        _showErrorSnackBar('Error placing order: $e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isPlacingOrder = false);
+      }
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: GoogleFonts.poppins()),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
     );
   }
 
-  void _showOrderConfirmationDialog() {
+  void _showOrderConfirmationDialog(String orderId) {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(
@@ -588,24 +593,52 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               Icon(Icons.check_circle, color: Colors.teal.shade600, size: 28),
               const SizedBox(width: 12),
               Text(
-                'Order Placed',
+                'Order Placed!',
                 style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
               ),
             ],
           ),
-          content: Text(
-            'Your order has been placed successfully!\n\nPayment method: ${selectedPaymentMethod == 'credit_card' ? 'Credit Card' : 'Cash on Delivery'}\n\nTotal: \$${widget.total.toStringAsFixed(2)}',
-            style: GoogleFonts.poppins(),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Your order has been placed successfully!',
+                style: GoogleFonts.poppins(),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Order ID: ${orderId.substring(0, 8)}...',
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Payment: ${selectedPaymentMethod == 'credit_card' ? 'Credit Card' : 'Cash on Delivery'}',
+                style: GoogleFonts.poppins(fontSize: 14),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Total: EGP ${widget.total.toStringAsFixed(2)}',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.teal.shade600,
+                ),
+              ),
+            ],
           ),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.pop(context); // Close dialog
                 Navigator.pop(context); // Go back to cart
-                Navigator.pop(context); // Go back to previous screen
+                Navigator.pop(context); // Go back to market
               },
               child: Text(
-                'OK',
+                'Done',
                 style: GoogleFonts.poppins(
                   color: Colors.teal.shade600,
                   fontWeight: FontWeight.w600,
@@ -618,10 +651,3 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 }
-
-
-
-
-
-
-

@@ -279,6 +279,16 @@ class AuthService {
     }
   }
 
+  // Update user data in Firestore
+  Future<void> updateUserData(String userId, Map<String, dynamic> data) async {
+    try {
+      await _firestore.collection('users').doc(userId).update(data);
+    } catch (e) {
+      print('Error updating user data: $e');
+      rethrow;
+    }
+  }
+
   // Check if user is admin
   Future<bool> isAdmin() async {
     final user = _auth.currentUser;

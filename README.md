@@ -1,391 +1,326 @@
-# OtFha - Plant Disease Detection App
+# Otfha - Agricultural Marketplace Platform (Flutter App)
 
-Flutter mobile app with ML-powered plant disease detection using PyTorch and a Flask backend API.
+## 📱 About
+Otfha is a comprehensive agricultural marketplace platform built with Flutter. It helps farmers manage their crops, resources, track expenses, diagnose plant diseases, and access agricultural marketplace.
 
-## 🌟 Overview
+## 🏗️ **New Project Architecture**
 
-- **Flutter App**: Cross-platform mobile app (Android/iOS)
-- **ML Backend**: Flask API with PyTorch disease detection model
-- **Firebase**: Authentication and data storage
-- **Dataset**: PlantVillage 52K+ plant disease images
-- **Model**: ResNet18 trained on 38 disease classes
+This project has been restructured following **Clean Architecture** principles and **Feature-Based Organization** for better scalability, maintainability, and testability.
 
-## 🚀 Quick Start
-
-### 1. Clone & Setup Backend
-
-```bash
-# Clone the repo
-git clone <your-repo-url>
-cd otfha
-
-# Setup Python environment
-cd backend
-python -m venv venv
-venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-### 2. Get ML Assets (Important!)
-
-**The trained models and dataset are stored outside the repo** to keep it lean:
-
-1. Get the `external_assets` folder (from Google Drive/team member)
-2. Place it at: `C:\Users\<you>\OneDrive\Desktop\external_assets\`
-
-Structure should be:
-```
-Desktop/
-├── external_assets/              ← Models & dataset here
-│   ├── PlantVillage-Dataset/
-│   └── models/
-│       ├── plant_disease_best.pt
-│       └── classes.json
-└── otfha/                        ← Your cloned repo
-    ├── backend/
-    └── lib/
-```
-
-### 3. Start Backend Server
-
-```bash
-cd backend
-.\START_FLASK_NOW.bat
-# Or manually:
-venv\Scripts\activate
-python app.py
-```
-
-Server runs at: `http://localhost:5000`
-
-### 4. Run Flutter App
-
-```bash
-# Get dependencies
-flutter pub get
-
-# Run on Android emulator
-flutter emulators --launch Pixel_API_33
-flutter run
-
-# Or run on your physical device
-flutter run
-```
-
-## 📁 Project Structure
+### **Project Structure**
 
 ```
-otfha/
-├── lib/                          # Flutter app source
-│   ├── main.dart                # Entry point
-│   ├── screens/                 # UI screens
-│   │   ├── login_screen.dart
-│   │   ├── home_screen.dart
-│   │   ├── camera_screen.dart  # Image capture & upload
-│   │   └── result_screen.dart  # Disease prediction results
-│   └── services/
-│       ├── auth_service.dart   # Firebase auth
-│       └── ml_service.dart     # ML API calls
+lib/
+├── core/                          # Core functionality (shared across features)
+│   ├── config/                    # App configuration & routes
+│   ├── theme/                     # Theme & colors
+│   ├── constants/                 # String & asset constants
+│   ├── models/                    # Shared domain models
+│   ├── error/                     # Error handling
+│   └── utils/                     # Utility functions
 │
-├── backend/                     # Flask API server
-│   ├── app.py                   # Main server
-│   ├── app/
-│   │   ├── routes/              # API endpoints
-│   │   ├── services/            # ML inference
-│   │   │   └── plant_disease_prediction_service.py
-│   │   └── utils/               # Helpers
-│   ├── scripts/
-│   │   └── train_local.py       # Train new models
-│   ├── requirements.txt
-│   └── venv/                    # Python packages (693 MB - not in Git)
+├── features/                      # Feature-based modules
+│   ├── auth/                     # Authentication
+│   ├── home/                     # Home dashboard
+│   ├── crops/                    # Crop management
+│   ├── market/                   # Marketplace
+│   ├── schedule/                 # Task scheduling
+│   ├── resources/                # Resource management
+│   ├── expenses/                 # Expense tracking
+│   ├── diagnosis/                # Disease diagnosis
+│   ├── loans/                    # Loan applications
+│   └── weather/                  # Weather information
 │
-├── android/                     # Android build config
-├── ios/                         # iOS build config
-└── assets/                      # App images/icons
-
-NOT IN GIT (regenerated or external):
-├── build/                       # Flutter builds (9.5 GB - ignored)
-├── .dart_tool/                  # Flutter cache (ignored)
-└── ../external_assets/          # ML assets (outside repo)
-    ├── PlantVillage-Dataset/   # 52K images
-    └── models/                  # Trained models
+├── shared/                        # Shared UI components
+│   ├── widgets/                  # Reusable widgets
+│   └── providers/                # Shared state providers
+│
+└── main.dart                      # App entry point
 ```
 
-## 🔧 API Endpoints
+### **Key Features of New Structure**
 
-### Health & Status
-- `GET /health` - Server health check
-- `GET /metrics` - Server metrics
+#### ✅ **Completed Restructuring**
+- [x] **Core Infrastructure**: Configuration, theme, constants, utilities
+- [x] **Models Layer**: All domain models with Equatable support
+- [x] **Error Handling**: Custom exceptions and failures
+- [x] **Utilities**: Validators, formatters, helpers, logger
+- [x] **Shared Widgets**: Buttons, forms, cards, loading, dialogs
+- [x] **Theme System**: Centralized colors and theming
 
-### ML Inference
-- `POST /v1/predict/disease` - Predict plant disease
-  ```json
-  {
-    "image": <multipart file>,
-    "user_id": "optional"
-  }
-  ```
-  Response:
-  ```json
-  {
-    "success": true,
-    "disease": "Tomato___Late_blight",
-    "confidence": 0.95,
-    "top_predictions": [...]
-  }
-  ```
+#### 🚧 **In Progress**
+- [ ] **Feature Migration**: Moving screens to feature-based structure
+- [ ] **Repository Pattern**: Data layer abstraction
+- [ ] **State Management**: Provider implementation for each feature
+- [ ] **Screen Migration**: Reorganizing existing screens
 
-### Data
-- `GET /v1/plants/{id}` - Plant info
-- `GET /v1/diseases/{id}` - Disease info
+## 🎯 Features
 
-## 🤖 ML Model Details
+### Current Features
+- ✅ **Authentication**
+  - Email/Password login
+  - Google Sign-In
+  - Password recovery
+  - User registration
 
-### Dataset
-- **Source**: PlantVillage Dataset
-- **Images**: 52,000+ labeled plant disease images
-- **Classes**: 38 disease classes across 14 plant species
-- **Location**: `../external_assets/PlantVillage-Dataset/`
+- ✅ **Crop Management**
+  - Add and track crops
+  - Monitor growth stages
+  - Harvest predictions
+  - Crop history
 
-### Model
-- **Architecture**: ResNet18 (pretrained on ImageNet)
-- **Framework**: PyTorch 2.0+
-- **Input**: 224x224 RGB images
-- **Output**: 38-class softmax predictions
-- **Location**: `../external_assets/models/plant_disease_best.pt`
+- ✅ **Marketplace**
+  - Browse products
+  - Shopping cart
+  - Product search
+  - Checkout process
 
-### Training
+- ✅ **Task Scheduling**
+  - Create farm tasks
+  - Calendar view
+  - Task reminders
+  - Completion tracking
 
-To train a new model:
+- ✅ **Resource Management**
+  - Equipment tracking
+  - Tools inventory
+  - Resource status
+  - Purchase history
 
-```bash
-cd backend
-venv\Scripts\activate
-python scripts/train_local.py --epochs 20 --batch-size 32
+- ✅ **Expense Tracking**
+  - Record expenses
+  - Category management
+  - Expense reports
+  - Financial overview
 
-# Quick test (2 classes, 5 epochs):
-python scripts/train_local.py --subset 2 --epochs 5
+- ✅ **Disease Diagnosis**
+  - AI-powered plant disease detection
+  - Treatment recommendations
+  - Prevention tips
+  - Diagnosis history
+
+- ✅ **Weather Information**
+  - Real-time weather
+  - Location-based forecasts
+  - Weather alerts
+  - Farming insights
+
+- ✅ **Loan Applications**
+  - Apply for agricultural loans
+  - Track application status
+  - Loan calculator
+
+## 🛠️ Technologies Used
+
+### **Framework & Language**
+- Flutter 3.9.0
+- Dart
+
+### **Backend & Database**
+- Firebase Authentication
+- Cloud Firestore
+- Firebase Storage
+- Cloud Functions
+
+### **State Management**
+- Provider
+
+### **Architecture Patterns**
+- Clean Architecture
+- Repository Pattern
+- MVVM (Model-View-ViewModel)
+
+### **Key Packages**
+- `google_fonts` - Typography
+- `equatable` - Value equality
+- `dartz` - Functional programming
+- `intl` - Internationalization
+- `image_picker` - Image selection
+- `geolocator` - Location services
+- `http` - Network requests
+
+## 📂 Code Organization
+
+### **Core Module**
+Shared functionality used across all features:
+- `config/` - App configuration and routing
+- `theme/` - UI theming and colors
+- `constants/` - App-wide constants
+- `models/` - Domain models
+- `error/` - Error handling
+- `utils/` - Utility functions
+
+### **Feature Modules**
+Each feature follows this structure:
+```
+feature_name/
+├── data/
+│   ├── datasources/    # API & local data sources
+│   ├── repositories/   # Repository implementations
+│   └── models/         # Data transfer objects
+├── domain/
+│   ├── entities/       # Business entities
+│   ├── repositories/   # Repository interfaces
+│   └── usecases/       # Business logic
+└── presentation/
+    ├── providers/      # State management
+    ├── screens/        # UI screens
+    └── widgets/        # Feature-specific widgets
 ```
 
-## 🔐 Firebase Setup
+### **Shared Module**
+Reusable UI components:
+- `widgets/buttons/` - Custom buttons
+- `widgets/forms/` - Form components
+- `widgets/cards/` - Card layouts
+- `widgets/loading/` - Loading indicators
+- `widgets/dialogs/` - Dialog components
 
-The app uses Firebase for:
-- **Authentication**: Email/password and Google Sign-In
-- **Firestore**: User data and prediction history
-- **Storage**: User uploaded images
+## 🚀 Getting Started
 
-Config file: `lib/firebase_options.dart`
+### Prerequisites
+- Flutter SDK (^3.9.0)
+- Dart SDK
+- Android Studio / VS Code
+- Firebase Project
 
-To set up Firebase:
-1. Create project at https://console.firebase.google.com
-2. Add Android app (package: `com.OtFha`)
-3. Download `google-services.json` → `android/app/`
-4. Run: `flutterfire configure`
+### Installation
 
-## 📱 Features
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd otfha
+   ```
 
-- ✅ User authentication (Email + Google)
-- ✅ Camera capture & gallery upload
-- ✅ Real-time disease prediction
-- ✅ Confidence scores & top predictions
-- ✅ Disease info & treatment recommendations
-- ✅ Prediction history
-- ✅ Offline capability (cached models)
+2. **Install dependencies**
+   ```bash
+   flutter pub get
+   ```
 
-## 🛠️ Development
+3. **Configure Firebase**
+   - Add your `google-services.json` (Android)
+   - Add your `GoogleService-Info.plist` (iOS)
+   - Update `firebase_options.dart`
 
-### Backend Development
+4. **Run the app**
+   ```bash
+   flutter run
+   ```
 
-```bash
-cd backend
-venv\Scripts\activate
-python app.py  # Runs on localhost:5000
+## 📖 Usage Examples
+
+### Using Custom Widgets
+
+```dart
+// Custom Button
+PrimaryButton(
+  text: 'Save',
+  onPressed: () => _save(),
+  icon: Icons.save,
+)
+
+// Custom Text Field
+CustomTextField(
+  label: 'Email',
+  controller: _emailController,
+  validator: Validators.email,
+)
+
+// Password Field
+PasswordField(
+  controller: _passwordController,
+  validator: Validators.password,
+)
 ```
 
-### Flutter Development
+### Using Utilities
 
-```bash
-# Hot reload during development
-flutter run
-# Press 'r' to hot reload
-# Press 'R' to hot restart
+```dart
+// Validation
+validator: Validators.combine([
+  (value) => Validators.required(value, fieldName: 'Email'),
+  Validators.email,
+])
 
-# Build APK
-flutter build apk --release
+// Formatting
+Text(Formatters.formatCurrency(price))
+Text(Formatters.formatDate(DateTime.now()))
 
-# Build Windows app
-flutter build windows --release
+// Helpers
+Helpers.showSuccess(context, 'Saved successfully!');
+if (await Helpers.showDeleteConfirmDialog(context)) {
+  // Delete item
+}
 ```
 
-### Testing
+### Using Models
+
+```dart
+// Create a model
+final crop = Crop(
+  id: 'crop-123',
+  userId: 'user-456',
+  name: 'Wheat',
+  type: 'Cereal',
+  plantingDate: DateTime.now(),
+  expectedHarvestDate: DateTime.now().add(Duration(days: 90)),
+  farmArea: 10.5,
+  farmLocation: 'Field A',
+  status: 'Planted',
+  createdAt: DateTime.now(),
+  updatedAt: DateTime.now(),
+);
+
+// Update a model
+final updatedCrop = crop.copyWith(status: 'Growing');
+```
+
+## 🧪 Testing
 
 ```bash
-# Backend API test
-curl http://localhost:5000/health
-
-# Test prediction with image
-curl -X POST http://localhost:5000/v1/predict/disease \
-  -F "image=@path/to/leaf.jpg"
-
-# Flutter tests
+# Run all tests
 flutter test
+
+# Run with coverage
+flutter test --coverage
+
+# Run specific test file
+flutter test test/core/utils/validators_test.dart
 ```
 
-## 📦 Dependencies
+## 📝 Documentation
 
-### Backend (Python)
-- **Flask** 2.3+ - Web framework
-- **PyTorch** 2.0+ - ML framework (428 MB)
-- **torchvision** 0.15+ - Image models
-- **Pillow** 10.0+ - Image processing
-- **Firebase Admin** 6.0+ - Firebase integration
-- **NumPy**, **tqdm** - Utilities
-
-**Total venv size**: ~693 MB (PyTorch = 62% of this)
-
-### Flutter (Dart)
-- **firebase_core** & **firebase_auth** - Firebase
-- **cloud_firestore** - Database
-- **image_picker** - Camera/gallery
-- **http** - API calls
-- **google_fonts** - UI fonts
-
-## 🗂️ Git Repository
-
-This repo is optimized for GitHub:
-- **Size**: ~200 MB (source code only)
-- **Excluded**: Build artifacts (9.5 GB), Python venv (693 MB), ML assets (external)
-
-What's NOT tracked:
-```gitignore
-build/              # Flutter builds
-backend/venv/       # Python packages
-../external_assets/ # ML models & dataset
-*.pt, *.pth         # Model files
-```
-
-## 🚨 Troubleshooting
-
-### Backend Issues
-
-**Port 5000 already in use:**
-```bash
-# Check what's using the port
-netstat -ano | findstr :5000
-# Or change port in .env: PORT=8080
-```
-
-**Model not found:**
-```bash
-# Check external_assets location
-ls ../external_assets/models/
-# Should contain: plant_disease_best.pt, classes.json
-```
-
-**venv activation fails:**
-```bash
-# Windows PowerShell:
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-# Then retry: venv\Scripts\activate
-```
-
-### Flutter Issues
-
-**Emulator not showing:**
-```bash
-# Launch manually from Android Studio
-# Or use: flutter emulators --launch Pixel_API_33
-```
-
-**Build fails:**
-```bash
-flutter clean
-flutter pub get
-flutter build <platform>
-```
-
-**Firebase errors:**
-```bash
-# Ensure google-services.json is in android/app/
-# Run: flutterfire configure
-```
-
-### ML/API Issues
-
-**Predictions fail:**
-1. Check backend is running: http://localhost:5000/health
-2. For Android emulator, app uses: `http://10.0.2.2:5000`
-3. For physical device, use your PC's local IP
-
-**Model loading slow:**
-- First load takes 30-60 seconds (PyTorch model initialization)
-- Subsequent predictions are fast (~1-2 seconds)
-
-## 🔄 Deployment
-
-### For Team Members
-
-When cloning this repo:
-1. Clone the repository
-2. Setup backend: `cd backend; python -m venv venv; pip install -r requirements.txt`
-3. Setup Flutter: `flutter pub get`
-4. **Get ML assets**: Obtain `external_assets` folder separately
-5. Place `external_assets` one level above project directory
-
-### For Production
-
-**Not production-ready as-is.** For production deployment:
-- Use proper server (Gunicorn/uWSGI, not Flask dev server)
-- Add authentication/API keys
-- Use cloud storage for models
-- Implement proper error handling
-- Add monitoring/logging
-- Use HTTPS
-
-## 📊 Model Performance
-
-Current model (`plant_disease_best.pt`):
-- **Accuracy**: ~95% on test set
-- **Classes**: 38 diseases
-- **Inference time**: ~1-2 seconds (CPU)
-- **Model size**: 45 MB
-
-To improve:
-- Fine-tune on more epochs
-- Use larger model (ResNet50, EfficientNet)
-- Add data augmentation
-- Collect more training data
-
-## 💡 Tips
-
-1. **Use demo mode** for UI development without ML model
-2. **Keep external_assets separate** - never commit to Git
-3. **Backend venv is 693 MB** - this is normal for PyTorch
-4. **First prediction is slow** - model loads on first request
-5. **Use localhost:5000** for testing on Windows
-6. **Use 10.0.2.2:5000** for Android emulator
+- [Restructuring Guide](./RESTRUCTURING_GUIDE.md) - Detailed architecture documentation
+- [Firebase Backend Guide](./FIREBASE_BACKEND_GUIDE.md) - Backend implementation guide
 
 ## 🤝 Contributing
 
-1. Keep ML assets in `external_assets/` (outside repo)
-2. Don't commit `build/`, `venv/`, or `.dart_tool/`
-3. Follow Flutter style guide
-4. Test API endpoints before pushing
-5. Document new features in code
+1. Follow the existing code structure
+2. Use the shared widgets and utilities
+3. Follow clean architecture principles
+4. Write tests for new features
+5. Document complex logic
+
+### Code Style
+- Use `snake_case` for file names
+- Use `PascalCase` for class names
+- Use `camelCase` for variables and functions
+- Follow Flutter's official style guide
 
 ## 📄 License
 
-[Your License Here]
+This project is licensed under the MIT License.
 
-## 🆘 Need Help?
+## 👥 Team
 
-- **API not responding**: Check `backend/logs/` for errors
-- **Model errors**: Verify `external_assets/models/` exists
-- **Build issues**: Run `flutter doctor` for diagnostics
-- **Firebase issues**: Check `google-services.json` is present
+- Development Team: O-TFha Agricultural Platform
+
+## 📞 Support
+
+For support and questions:
+- Open an issue on GitHub
+- Contact the development team
 
 ---
 
-**Ready to develop!** Start the backend, run the Flutter app, and start detecting plant diseases! 🌱
-
-For questions or issues, check the troubleshooting section above.
+**Note**: This app is currently under active restructuring to improve code quality, maintainability, and scalability. See [RESTRUCTURING_GUIDE.md](./RESTRUCTURING_GUIDE.md) for more details.

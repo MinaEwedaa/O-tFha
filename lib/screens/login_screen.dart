@@ -133,7 +133,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 10),
 
                 Text(
-                  'Otfha',
+                  "O'tFha",
                   style: GoogleFonts.poppins(
                     fontSize: 36,
                     color: Colors.teal.shade700,
