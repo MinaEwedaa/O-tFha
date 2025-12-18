@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../services/cloud_vision_service.dart';
 import '../services/ml_service.dart';
+import '../services/huggingface_service.dart';
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
@@ -15,34 +15,29 @@ class CameraScreen extends StatefulWidget {
 
 class _CameraScreenState extends State<CameraScreen> {
   final ImagePicker _picker = ImagePicker();
-  final CloudVisionService _cloudVisionService = CloudVisionService();
-  final TFLiteMLService _tfliteService = TFLiteMLService();
+  final HuggingFaceService _huggingFaceService = HuggingFaceService();
   File? _selectedImage;
   bool _isLoading = false;
   bool _multipleMode = false;
   String _selectedCategory = 'Plant';
   File? _lastPickedImage;
-  bool _useOnDeviceML = true; // Toggle between on-device ML and Cloud API
 
   @override
   void initState() {
     super.initState();
     // Set status bar to transparent for full screen experience
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
-    // Initialize TFLite model
+    // Initialize ML service
     _initializeML();
   }
 
   Future<void> _initializeML() async {
     try {
-      await _tfliteService.initialize();
-      print('✅ On-device ML initialized');
+      await _huggingFaceService.initialize();
+      print('✅ HuggingFace ML initialized');
     } catch (e) {
-      print('⚠️ Failed to initialize on-device ML: $e');
-      // Fall back to cloud service if local ML fails
-      setState(() {
-        _useOnDeviceML = false;
-      });
+      print('⚠️ Failed to initialize HuggingFace ML: $e');
+      _showErrorSnackBar('Failed to initialize AI service. Please check your internet connection.');
     }
   }
 
@@ -50,7 +45,7 @@ class _CameraScreenState extends State<CameraScreen> {
   void dispose() {
     // Restore system UI when leaving
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    _tfliteService.dispose();
+    _huggingFaceService.dispose();
     super.dispose();
   }
 
@@ -101,18 +96,8 @@ class _CameraScreenState extends State<CameraScreen> {
     });
 
     try {
-      PredictionResult result;
-
-      if (_useOnDeviceML) {
-        // Use on-device TFLite model (no internet required!)
-        result = await _tfliteService.detectDisease(imageFile);
-      } else {
-        // Fall back to Cloud Vision API
-        if (!_cloudVisionService.isAuthenticated()) {
-          throw Exception('You must be signed in to use cloud-based detection');
-        }
-        result = await _cloudVisionService.detectPlantDisease(imageFile);
-      }
+      // Use HuggingFace Inference API (crop_leaf_diseases_vit model)
+      final result = await _huggingFaceService.classifyImage(imageFile);
 
       if (mounted) {
         // Navigate to results screen
@@ -152,6 +137,7 @@ class _CameraScreenState extends State<CameraScreen> {
       );
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -200,29 +186,26 @@ class _CameraScreenState extends State<CameraScreen> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      _useOnDeviceML 
-                          ? 'Analyzing plant (On-device)...'
-                          : 'Analyzing plant (Cloud)...',
+                      'Analyzing crop disease...',
                       style: GoogleFonts.poppins(
                         color: Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    if (_useOnDeviceML)
-                      Text(
-                        'No internet required',
-                        style: GoogleFonts.poppins(
-                          color: Colors.white70,
-                          fontSize: 12,
-                        ),
+                    Text(
+                      'AI-powered disease detection',
+                      style: GoogleFonts.poppins(
+                        color: Colors.white70,
+                        fontSize: 12,
                       ),
+                    ),
                   ],
                 ),
               ),
             ),
 
-          // Top bar with close and settings buttons
+          // Top bar with close button and AI indicator
           Positioned(
             top: 0,
             left: 0,
@@ -240,49 +223,31 @@ class _CameraScreenState extends State<CameraScreen> {
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),
-                    // ML mode toggle
-                    GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _useOnDeviceML = !_useOnDeviceML;
-                        });
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              _useOnDeviceML 
-                                  ? '✓ Using on-device ML (offline mode)'
-                                  : '✓ Using cloud ML (requires internet)',
-                            ),
-                            duration: const Duration(seconds: 2),
-                            behavior: SnackBarBehavior.floating,
+                    // AI indicator badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.purple,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.auto_awesome,
+                            color: Colors.white,
+                            size: 18,
                           ),
-                        );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: _useOnDeviceML ? Colors.green : Colors.blue,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              _useOnDeviceML ? Icons.offline_bolt : Icons.cloud,
+                          const SizedBox(width: 4),
+                          Text(
+                            'AI Powered',
+                            style: GoogleFonts.poppins(
                               color: Colors.white,
-                              size: 18,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              _useOnDeviceML ? 'Local' : 'Cloud',
-                              style: GoogleFonts.poppins(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -496,13 +461,12 @@ class _CameraScreenState extends State<CameraScreen> {
           ),
         ),
         content: Text(
-          '1. Select analysis mode (Local/Cloud)\n'
-          '   • Local: Works offline with on-device AI\n'
-          '   • Cloud: Requires internet, more accurate\n'
-          '2. Select plant category\n'
-          '3. Take a photo or choose from gallery\n'
-          '4. Make sure the plant leaf is clearly visible\n'
-          '5. Wait for disease analysis',
+          '🌿 Crop Disease Detection\n\n'
+          '1. Select plant category\n'
+          '2. Take a photo or choose from gallery\n'
+          '3. Make sure the plant leaf is clearly visible\n'
+          '4. Wait for AI analysis results\n\n'
+          '💡 Tip: For best results, take a close-up photo of the affected leaf with good lighting.',
           style: GoogleFonts.poppins(
             fontSize: 14,
             height: 1.5,

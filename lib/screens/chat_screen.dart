@@ -173,45 +173,24 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
     _scrollToBottom();
 
-    try {
-      // Try online API first
-      String response;
-      try {
-        response = await _chatService.sendMessage(text);
-      } catch (e) {
-        // Fallback to offline responses
-        response = _chatService.getOfflineResponse(text);
-      }
+    // Get response from chat service
+    final response = await _chatService.sendMessage(text);
 
-      // Add AI response
-      final aiMessage = ChatMessage(
-        id: '${DateTime.now().millisecondsSinceEpoch}_ai',
-        content: response,
-        isUser: false,
-        timestamp: DateTime.now(),
-        suggestions: _chatService.getSuggestions(response),
-      );
+    // Add AI response
+    final aiMessage = ChatMessage(
+      id: '${DateTime.now().millisecondsSinceEpoch}_ai',
+      content: response,
+      isUser: false,
+      timestamp: DateTime.now(),
+      suggestions: _chatService.getSuggestions(response),
+    );
 
-      setState(() {
-        _messages.add(aiMessage);
-        _isTyping = false;
-        _currentSuggestions = aiMessage.suggestions ?? QuickSuggestions.initial;
-        _showSuggestions = true;
-      });
-    } catch (e) {
-      // Error message
-      setState(() {
-        _messages.add(ChatMessage(
-          id: '${DateTime.now().millisecondsSinceEpoch}_error',
-          content: '❌ Sorry, I encountered an error. Please try again.\n\n_${e.toString()}_',
-          isUser: false,
-          timestamp: DateTime.now(),
-          status: MessageStatus.error,
-        ));
-        _isTyping = false;
-        _showSuggestions = true;
-      });
-    }
+    setState(() {
+      _messages.add(aiMessage);
+      _isTyping = false;
+      _currentSuggestions = aiMessage.suggestions ?? QuickSuggestions.initial;
+      _showSuggestions = true;
+    });
 
     _scrollToBottom();
   }

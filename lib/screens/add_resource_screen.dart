@@ -393,7 +393,7 @@ class _AddResourceScreenState extends State<AddResourceScreen> {
         ],
       ),
       child: DropdownButtonFormField<String>(
-        value: value,
+        initialValue: value,
         decoration: InputDecoration(
           labelText: label,
           labelStyle: GoogleFonts.poppins(fontSize: 14),

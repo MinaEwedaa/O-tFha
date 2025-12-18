@@ -394,12 +394,25 @@ class CropService {
   }) {
     if (_userId == null) return Stream.value([]);
 
+    // NOTE:
+    // Using both `where` and `orderBy` on different fields in Firestore
+    // often requires a composite index. On some setups this was causing
+    // a "failed to load crops" error in the UI.
+    //
+    // To make the crops list work out‑of‑the‑box without requiring a
+    // manual index configuration, we keep the `where` filter and sort
+    // results in memory instead of using `orderBy` in the query.
+
     return _cropsCollection
         .where('userId', isEqualTo: _userId)
-        .orderBy('plantedDate', descending: true)
         .snapshots()
         .map((snapshot) {
       var crops = snapshot.docs.map((doc) => Crop.fromFirestore(doc)).toList();
+
+      // Sort by plantedDate (newest first) in memory
+      crops.sort(
+        (a, b) => b.plantedDate.compareTo(a.plantedDate),
+      );
 
       // Apply filters in-memory
       if (farmName != null && farmName.isNotEmpty) {
@@ -703,4 +716,19 @@ class CropService {
     ];
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

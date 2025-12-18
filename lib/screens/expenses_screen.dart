@@ -1124,7 +1124,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> with SingleTickerProvid
                   // Category Dropdown
                   if (selectedType == 'expense')
                     DropdownButtonFormField<String>(
-                      value: selectedCategory,
+                      initialValue: selectedCategory,
                       decoration: InputDecoration(
                         labelText: 'Category',
                         border: OutlineInputBorder(

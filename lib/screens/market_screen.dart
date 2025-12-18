@@ -1098,7 +1098,7 @@ class _MarketScreenState extends State<MarketScreen> with SingleTickerProviderSt
   Widget _buildListingsFilterTabs() {
     final filters = ['All', 'Active', 'Sold', 'Draft'];
     
-    return Container(
+    return SizedBox(
       height: 40,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
@@ -1754,7 +1754,7 @@ class _MarketScreenState extends State<MarketScreen> with SingleTickerProviderSt
                   });
                   Navigator.pop(context);
                 },
-                activeColor: Colors.teal.shade600,
+                activeThumbColor: Colors.teal.shade600,
               ),
             ],
           ),
@@ -1864,7 +1864,7 @@ class _MarketScreenState extends State<MarketScreen> with SingleTickerProviderSt
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: selectedCategory,
+                      initialValue: selectedCategory,
                       decoration: InputDecoration(
                         labelText: 'Category',
                         border: OutlineInputBorder(

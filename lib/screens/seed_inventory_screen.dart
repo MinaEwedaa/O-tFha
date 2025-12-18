@@ -23,7 +23,7 @@ class _SeedInventoryScreenState extends State<SeedInventoryScreen> with SingleTi
   bool _isExporting = false;
   
   // Demo mode for testing
-  bool _useDemoData = true;
+  final bool _useDemoData = true;
   List<SeedInventory> _demoSeeds = [];
   
   final List<Map<String, dynamic>> _categories = [
@@ -885,7 +885,7 @@ class _AddSeedSheetState extends State<_AddSeedSheet> {
   
   String _selectedCategory = 'vegetable';
   String _selectedUnit = 'kg';
-  DateTime _purchaseDate = DateTime.now();
+  final DateTime _purchaseDate = DateTime.now();
   DateTime? _expiryDate;
 
   @override
@@ -1024,7 +1024,7 @@ class _AddSeedSheetState extends State<_AddSeedSheet> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: DropdownButtonFormField<String>(
-        value: value,
+        initialValue: value,
         decoration: InputDecoration(
           labelText: label,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -1054,4 +1054,19 @@ class _AddSeedSheetState extends State<_AddSeedSheet> {
     }
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
